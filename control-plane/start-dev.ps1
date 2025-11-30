@@ -1,5 +1,6 @@
 param(
-  [int]$PreferredPort = 8081
+  [int]$PreferredPort = 8081,
+  [switch]$Foreground
 )
 
 function Get-FreePort {
@@ -19,9 +20,25 @@ Write-Host "Starting control plane on port $port" -ForegroundColor Cyan
 if (-not (Test-Path "package.json")) { throw "Run from control-plane folder" }
 if (-not (Test-Path "node_modules")) { npm install }
 
-# Start in background job
-$job = Start-Job -ScriptBlock { npx tsx src/server.ts }
-Start-Sleep -Seconds 2
+# Start in background job with correct working directory
+$scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
+if ($Foreground) {
+  Push-Location $scriptDir
+  $env:PORT = "$port"
+  Write-Host "[FG] Launching control plane on port $port (dir: $scriptDir)" -ForegroundColor Cyan
+  npx tsx "$scriptDir/src/server.ts"
+  Pop-Location
+  return
+}
+
+$job = Start-Job -ScriptBlock {
+  Param($dir, $portVal)
+  Push-Location $dir
+  $env:PORT = "$portVal"
+  Write-Host "[BG] Launching server from $dir on port $portVal" -ForegroundColor Cyan
+  try { npx tsx "$dir/src/server.ts" } catch { Write-Error $_ } finally { Pop-Location }
+} -ArgumentList $scriptDir, $port
+Start-Sleep -Seconds 3
 
 # Probe health and metrics
 try {

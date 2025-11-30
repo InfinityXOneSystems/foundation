@@ -1,7 +1,8 @@
+console.log("[control-plane] Server module loading...");
 import express from "express";
 import cors from "cors";
 import helmet from "helmet";
-import { createAppJWT, exchangeInstallationToken } from "./github";
+import { createAppJWT, exchangeInstallationToken } from "./github.js";
 
 // Simple metrics
 let totalCommands = 0;
@@ -39,9 +40,10 @@ app.get("/metrics", (_req, res) => {
 // Protected GitHub token test endpoint (uses env placeholders)
 app.get("/v1/github/test", async (_req, res) => {
   try {
-    const appId = process.env.GITHUB_APP_ID || "";
-    const keyPath = process.env.GITHUB_APP_PRIVATE_KEY_PATH || "";
-    const instId = process.env.GITHUB_APP_INSTALLATION_ID || "";
+    // Updated to use new secret names (APP_ID, APP_INSTALLATION_ID, APP_PRIVATE_KEY_PATH)
+    const appId = process.env.APP_ID || process.env.GITHUB_APP_ID || "";
+    const keyPath = process.env.APP_PRIVATE_KEY_PATH || process.env.GITHUB_APP_PRIVATE_KEY_PATH || "";
+    const instId = process.env.APP_INSTALLATION_ID || process.env.GITHUB_APP_INSTALLATION_ID || "";
     if (!appId || !keyPath || !instId) return res.status(400).json({ error: "missing_env" });
     const jwt = createAppJWT(appId, keyPath);
     const token = await exchangeInstallationToken(jwt, instId);
@@ -69,5 +71,5 @@ app.get("/v1/jobs/:id", (req, res) => {
 
 const port = Number(process.env.PORT || 8080);
 app.listen(port, () => {
-  console.log(`Control plane listening on :${port}`);
+  console.log(`[control-plane] Listening on :${port}`);
 });

@@ -1,24 +1,5 @@
-name: Trivy Security Scan
-
-on:
-  push:
-    branches: [ "master" ]
-  pull_request:
-    branches: [ "master" ]
-
-jobs:
-  fs-scan:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: aquasecurity/trivy-action@0.20.0
-        with:
-          scan-type: 'fs'
-          ignore-unfixed: true
-          format: 'table'
-          exit-code: '1'
-          severity: 'CRITICAL,HIGH'
 name: Trivy Scan
+
 on:
   push:
     branches: ["master"]
@@ -30,10 +11,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Set up Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
       - name: Build control-plane image
         run: |
           cd control-plane
