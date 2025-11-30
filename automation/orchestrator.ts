@@ -19,7 +19,8 @@ async function main() {
       await execute();
       await sync();
     } catch (err) {
-      audit.log({ actor: "system", intent: "loop-error", outcome: err.message, timestamp: new Date().toISOString() });
+      const message = err instanceof Error ? err.message : String(err);
+      audit.log({ actor: "system", intent: "loop-error", outcome: message, timestamp: new Date().toISOString() });
     }
     await new Promise(r => setTimeout(r, Number(process.env.LOOP_CYCLE_INTERVAL) || 60000));
   }

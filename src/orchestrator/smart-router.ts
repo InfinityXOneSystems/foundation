@@ -5,13 +5,14 @@ import { handleGeminiEvent } from "../agents/gemini";
 import { handleHostingerEvent } from "../agents/hostinger";
 import { handleChatGPTEvent } from "../agents/chatgpt";
 import { syncMemory } from "../memory/google-drive";
-import express from "express";
+import express, { Request, Response } from "express";
 import { log } from "../utils/logger";
 
 const app = express();
 app.use(express.json());
 
 // Example endpoint for agent event routing
+app.post("/api/route-event", async (req: Request, res: Response) => {
   const { agent, event } = req.body;
   log(`Route event: agent=${agent}, event=${JSON.stringify(event)}`);
   let result;
@@ -32,7 +33,7 @@ app.use(express.json());
       result = { error: "Unknown agent" };
   }
   res.json(result);
-// ...existing code...
+});
 
 // Memory sync endpoint
 app.post("/api/sync-memory", async (req, res) => {

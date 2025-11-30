@@ -1,8 +1,8 @@
 // src/utils/logger.ts
-import fs from 'fs';
-import path from 'path';
+import fs from "fs";
+import path from "path";
 
-const LOG_DIR = path.join(__dirname, '../../logs');
+const LOG_DIR = path.join(__dirname, "../../logs");
 if (!fs.existsSync(LOG_DIR)) fs.mkdirSync(LOG_DIR);
 
 function logFile() {
@@ -10,7 +10,7 @@ function logFile() {
   return path.join(LOG_DIR, `system-${date}.log`);
 }
 
-export function log(message: string, level: 'info' | 'warn' | 'error' = 'info') {
+export function log(message: string, level: "info" | "warn" | "error" = "info") {
   const entry = `[${new Date().toISOString()}] [${level.toUpperCase()}] ${message}\n`;
   fs.appendFileSync(logFile(), entry);
 }
