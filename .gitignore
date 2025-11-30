@@ -1,0 +1,75 @@
+# .gitignore
+# Node modules and dependencies
+node_modules/
+
+# Environment and secrets
+.env
+.env.*
+config/google-service-account.json
+*.key
+*.pem
+*.p12
+*.crt
+*.envrc
+*.secret
+*.secrets
+*.token
+*.bak
+*.backup
+*.log
+*.cache
+*.swp
+*.swo
+*.tmp
+*.DS_Store
+
+# Build and output
+/dist/
+/build/
+/.next/
+/.vercel/
+/.output/
+coverage/
+
+# IDE/editor
+.vscode/
+.idea/
+*.code-workspace
+*.sublime-project
+*.sublime-workspace
+
+# OS
+Thumbs.db
+.DS_Store
+
+# Artifacts and archives
+artifacts/
+*.tgz
+*.zip
+*.tar
+*.gz
+*.7z
+
+# Memory and rehydrate
+src/memory/rehydrate/memory.json
+src/memory/rehydrate/vectors.json
+src/memory/rehydrate/semantic.json
+src/memory/rehydrate/archive/
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Test output
+junit.xml
+
+# Misc
+*.pid
+*.seed
+*.pid.lock
+
+# Ignore local scripts/configs
+scripts/sync-github-secrets.js
+sync-secrets.config.json
