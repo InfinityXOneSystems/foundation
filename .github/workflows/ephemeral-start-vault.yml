@@ -1,11 +1,11 @@
-name: Ephemeral Vault Start Test
+name: Ephemeral Vault Seed Test
 on:
   push:
     branches:
       - master
 
 jobs:
-  start-vault:
+  seed-vault:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -43,18 +43,14 @@ jobs:
           set -euo pipefail
           ADMIN="$ROOT_TOKEN"
           
-          # Enable AppRole auth
-          curl -s -X POST -H "X-Vault-Token: $ADMIN" -d '{"type":"approle"}' http://127.0.0.1:8200/v1/sys/auth/approle | jq .
+          curl -s -X POST -H "X-Vault-Token: $ADMIN" -d '{"type":"approle"}' http://127.0.0.1:8200/v1/sys/auth/approle >/dev/null 2>&1 || true
           
-          # Create policy
-          curl -s -X POST -H "X-Vault-Token: $ADMIN" -d '{"policy":"path \"secret/data/migration/users/neoge\" { capabilities = [\"create\",\"update\",\"read\"] }\npath \"secret/data/foundation\" { capabilities = [\"create\",\"update\",\"read\",\"list\"] }"}' http://127.0.0.1:8200/v1/sys/policies/acl/migration-writer | jq .
+          curl -s -X POST -H "X-Vault-Token: $ADMIN" -d '{"policy":"path \"secret/data/foundation\" { capabilities = [\"create\",\"update\",\"read\",\"list\"] }"}' http://127.0.0.1:8200/v1/sys/policies/acl/seed-writer >/dev/null 2>&1
           
-          # Create AppRole role
-          curl -s -X POST -H "X-Vault-Token: $ADMIN" -d '{"token_policies":"migration-writer","token_ttl":"1h"}' http://127.0.0.1:8200/v1/auth/approle/role/migration-writer | jq .
+          curl -s -X POST -H "X-Vault-Token: $ADMIN" -d '{"token_policies":"seed-writer","token_ttl":"24h"}' http://127.0.0.1:8200/v1/auth/approle/role/seed-bot >/dev/null 2>&1
           
-          # Get role ID and create secret ID
-          ROLE_ID=$(curl -s -H "X-Vault-Token: $ADMIN" http://127.0.0.1:8200/v1/auth/approle/role/migration-writer/role-id | jq -r .data.role_id)
-          SECRET_ID=$(curl -s -X POST -H "X-Vault-Token: $ADMIN" -d '{}' http://127.0.0.1:8200/v1/auth/approle/role/migration-writer/secret-id | jq -r .data.secret_id)
+          ROLE_ID=$(curl -s -H "X-Vault-Token: $ADMIN" http://127.0.0.1:8200/v1/auth/approle/role/seed-bot/role-id | jq -r .data.role_id)
+          SECRET_ID=$(curl -s -X POST -H "X-Vault-Token: $ADMIN" -d '{}' http://127.0.0.1:8200/v1/auth/approle/role/seed-bot/secret-id | jq -r .data.secret_id)
           
           if [ -z "$ROLE_ID" ] || [ -z "$SECRET_ID" ]; then
             echo 'ERROR: Failed to create AppRole credentials'
@@ -63,38 +59,54 @@ jobs:
           
           echo "::add-mask::$ROLE_ID"
           echo "::add-mask::$SECRET_ID"
-          echo "$ROLE_ID" > migration-role-id.txt
-          echo "$SECRET_ID" > migration-secret-id.txt
-          echo "AppRole setup complete"
+          echo "$ROLE_ID" > seed-role-id.txt
+          echo "$SECRET_ID" > seed-secret-id.txt
 
-      - name: Login and write test payload
+      - name: Decode seed environment and write to Vault
         run: |
           set -euo pipefail
-          ROLE_ID=$(cat migration-role-id.txt)
-          SECRET_ID=$(cat migration-secret-id.txt)
           
+          # Decode SEED_ENV_B64
+          if [ -z "${{ secrets.SEED_ENV_B64 }}" ]; then
+            echo "ERROR: SEED_ENV_B64 secret not configured"
+            exit 1
+          fi
+          
+          SEED_ENV=$(echo -n "${{ secrets.SEED_ENV_B64 }}" | base64 -d)
+          echo "Decoded seed environment (first 100 chars): ${SEED_ENV:0:100}..."
+          
+          # Convert env format (KEY=value) to JSON {"KEY": "value"}
+          PAYLOAD_JSON=$(echo "$SEED_ENV" | jq -sR 'split("\n") | map(select(length > 0) | split("=") | {(.[0]): (.[1:] | join("="))}) | add' || echo '{}')
+          
+          # Get AppRole credentials
+          ROLE_ID=$(cat seed-role-id.txt)
+          SECRET_ID=$(cat seed-secret-id.txt)
+          
+          # Login to Vault
           TOKEN=$(curl -s -X POST -d '{"role_id":"'$ROLE_ID'","secret_id":"'$SECRET_ID'"}' http://127.0.0.1:8200/v1/auth/approle/login | jq -r '.auth.client_token')
           echo "::add-mask::$TOKEN"
           
-          curl -s -X POST -H "X-Vault-Token: $TOKEN" -H "Content-Type: application/json" -d '{"data": {"sanity": "ok", "test_key": "test_value"}}' http://127.0.0.1:8200/v1/secret/data/foundation | jq .
+          # Write payload to Vault
+          curl -s -X POST -H "X-Vault-Token: $TOKEN" -H "Content-Type: application/json" -d "{\"data\": $PAYLOAD_JSON}" http://127.0.0.1:8200/v1/secret/data/foundation | jq .
 
-      - name: Verify written data
+      - name: Verify seed was written
         run: |
           set -euo pipefail
-          ROLE_ID=$(cat migration-role-id.txt)
-          SECRET_ID=$(cat migration-secret-id.txt)
+          
+          ROLE_ID=$(cat seed-role-id.txt)
+          SECRET_ID=$(cat seed-secret-id.txt)
           
           TOKEN=$(curl -s -X POST -d '{"role_id":"'$ROLE_ID'","secret_id":"'$SECRET_ID'"}' http://127.0.0.1:8200/v1/auth/approle/login | jq -r '.auth.client_token')
           echo "::add-mask::$TOKEN"
           
           RESPONSE=$(curl -s -H "X-Vault-Token: $TOKEN" http://127.0.0.1:8200/v1/secret/data/foundation)
-          echo "$RESPONSE" | jq .
+          KEYS=$(echo "$RESPONSE" | jq '.data.data | keys | length')
           
-          KEYS=$(echo "$RESPONSE" | jq -r '.data.data | keys')
-          echo "Keys: $KEYS"
+          echo "Total keys in seed: $KEYS"
+          echo "$RESPONSE" | jq '.data.data | keys[]' | head -20
 
       - name: Cleanup
         if: always()
         run: |
           pkill vault || true
-          rm -f vault vault.zip migration-role-id.txt migration-secret-id.txt || true
+          rm -f vault vault.zip seed-role-id.txt seed-secret-id.txt || true
