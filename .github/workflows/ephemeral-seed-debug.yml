@@ -1,0 +1,23 @@
+name: Ephemeral Seed Debug
+
+on:
+  push:
+    branches: [ master ]
+
+jobs:
+  debug-runner:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Print runner environment (debug)
+        run: |
+          set -euxo pipefail
+          echo "=== RUNNER DEBUG ==="
+          uname -a || true
+          whoami || true
+          date -u || true
+          docker --version || true
+          if [ -n "${{ secrets.SEED_ENV_B64 }}" ]; then echo 'SEED_ENV_B64 is set'; else echo 'SEED_ENV_B64 is NOT set'; fi
+          env | grep -E 'ROOT_TOKEN|ROLE_ID|SECRET_ID' || true
