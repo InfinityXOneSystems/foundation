@@ -17,12 +17,23 @@ jobs:
         run: |
           docker --version || (echo 'docker missing' && exit 1)
 
+      - name: Debug runner (capture environment)
+        run: |
+          set -euxo pipefail
+          echo "=== runner debug ==="
+          uname -a || true
+          whoami || true
+          date -u || true
+          docker --version || true
+          echo "SEED_ENV_B64 set: ${SEED_ENV_B64:+yes}" || true
+          ls -la || true
+
       - name: Create root token and start Vault dev
         run: |
           set -euo pipefail
           ROOT=$(openssl rand -hex 32)
           echo "::add-mask::$ROOT"
-          docker run --cap-add=IPC_LOCK -d --name vault-stable -e VAULT_DEV_ROOT_TOKEN_ID=$ROOT -p 8200:8200 hashicorp/vault:1.14.2 server -dev -dev-root-token-id=$ROOT
+          docker run --cap-add=IPC_LOCK -d --name vault-stable -e "VAULT_DEV_ROOT_TOKEN_ID=$ROOT" -p 8200:8200 hashicorp/vault:1.14.2 server -dev -dev-root-token-id=$ROOT
           echo "ROOT_TOKEN=$ROOT" >> $GITHUB_ENV
 
       - name: Wait for Vault healthy
