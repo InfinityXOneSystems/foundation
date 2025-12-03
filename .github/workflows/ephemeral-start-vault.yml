@@ -38,45 +38,63 @@ jobs:
           done
           exit 1
 
-      - name: Enable AppRole auth method
-        run: |
-          set -euo pipefail
-          curl -s -X POST -H "X-Vault-Token: $ROOT_TOKEN" http://127.0.0.1:8200/v1/sys/auth/approle | jq .
-
-      - name: Create policy + AppRole + save artifacts
+      - name: Setup AppRole auth + policy
         run: |
           set -euo pipefail
           ADMIN="$ROOT_TOKEN"
-          curl -s -X POST -H "X-Vault-Token: $ADMIN" -d '{"policy":"path \"secret/data/migration/users/neoge\" { capabilities = [\"create\",\"update\",\"read\"] }"}' http://127.0.0.1:8200/v1/sys/policies/acl/migration-writer
-          curl -s -X POST -H "X-Vault-Token: $ADMIN" -d '{"type":"approle"}' http://127.0.0.1:8200/v1/sys/auth/approle
-          curl -s -X POST -H "X-Vault-Token: $ADMIN" -d '{"token_policies":"migration-writer","token_ttl":"1h"}' http://127.0.0.1:8200/v1/auth/approle/role/migration-writer
+          
+          # Enable AppRole auth
+          curl -s -X POST -H "X-Vault-Token: $ADMIN" -d '{"type":"approle"}' http://127.0.0.1:8200/v1/sys/auth/approle | jq .
+          
+          # Create policy
+          curl -s -X POST -H "X-Vault-Token: $ADMIN" -d '{"policy":"path \"secret/data/migration/users/neoge\" { capabilities = [\"create\",\"update\",\"read\"] }\npath \"secret/data/foundation\" { capabilities = [\"create\",\"update\",\"read\",\"list\"] }"}' http://127.0.0.1:8200/v1/sys/policies/acl/migration-writer | jq .
+          
+          # Create AppRole role
+          curl -s -X POST -H "X-Vault-Token: $ADMIN" -d '{"token_policies":"migration-writer","token_ttl":"1h"}' http://127.0.0.1:8200/v1/auth/approle/role/migration-writer | jq .
+          
+          # Get role ID and create secret ID
           ROLE_ID=$(curl -s -H "X-Vault-Token: $ADMIN" http://127.0.0.1:8200/v1/auth/approle/role/migration-writer/role-id | jq -r .data.role_id)
           SECRET_ID=$(curl -s -X POST -H "X-Vault-Token: $ADMIN" -d '{}' http://127.0.0.1:8200/v1/auth/approle/role/migration-writer/secret-id | jq -r .data.secret_id)
-          if [ -z "$ROLE_ID" ] || [ -z "$SECRET_ID" ]; then echo 'failed create approle' && exit 3; fi
-          echo "::add-mask::$ROLE_ID"; echo "::add-mask::$SECRET_ID"
-          echo "$ROLE_ID" > migration-role-id.txt; echo "$SECRET_ID" > migration-secret-id.txt
+          
+          if [ -z "$ROLE_ID" ] || [ -z "$SECRET_ID" ]; then
+            echo 'ERROR: Failed to create AppRole credentials'
+            exit 3
+          fi
+          
+          echo "::add-mask::$ROLE_ID"
+          echo "::add-mask::$SECRET_ID"
+          echo "$ROLE_ID" > migration-role-id.txt
+          echo "$SECRET_ID" > migration-secret-id.txt
+          echo "AppRole setup complete"
 
-      - name: Login AppRole and write test payload
+      - name: Login and write test payload
         run: |
           set -euo pipefail
           ROLE_ID=$(cat migration-role-id.txt)
           SECRET_ID=$(cat migration-secret-id.txt)
+          
           TOKEN=$(curl -s -X POST -d '{"role_id":"'$ROLE_ID'","secret_id":"'$SECRET_ID'"}' http://127.0.0.1:8200/v1/auth/approle/login | jq -r '.auth.client_token')
           echo "::add-mask::$TOKEN"
-          curl -s -X POST -H "X-Vault-Token: $TOKEN" -H "Content-Type: application/json" -d '{"data": {"sanity": "ok"}}' http://127.0.0.1:8200/v1/secret/data/foundation | jq -S . | sed -n '1,40p'
+          
+          curl -s -X POST -H "X-Vault-Token: $TOKEN" -H "Content-Type: application/json" -d '{"data": {"sanity": "ok", "test_key": "test_value"}}' http://127.0.0.1:8200/v1/secret/data/foundation | jq .
 
-      - name: Verify keys only
+      - name: Verify written data
         run: |
           set -euo pipefail
           ROLE_ID=$(cat migration-role-id.txt)
           SECRET_ID=$(cat migration-secret-id.txt)
+          
           TOKEN=$(curl -s -X POST -d '{"role_id":"'$ROLE_ID'","secret_id":"'$SECRET_ID'"}' http://127.0.0.1:8200/v1/auth/approle/login | jq -r '.auth.client_token')
           echo "::add-mask::$TOKEN"
-          curl -s -H "X-Vault-Token: $TOKEN" http://127.0.0.1:8200/v1/secret/data/foundation | jq -r '.data.data | keys' | sed -n '1,200p'
-          echo "TotalKeys=$(curl -s -H \"X-Vault-Token: $TOKEN\" http://127.0.0.1:8200/v1/secret/data/foundation | jq -r '.data.data | keys | length')"
+          
+          RESPONSE=$(curl -s -H "X-Vault-Token: $TOKEN" http://127.0.0.1:8200/v1/secret/data/foundation)
+          echo "$RESPONSE" | jq .
+          
+          KEYS=$(echo "$RESPONSE" | jq -r '.data.data | keys')
+          echo "Keys: $KEYS"
 
       - name: Cleanup
         if: always()
         run: |
           pkill vault || true
-          rm -f vault vault.zip || true
+          rm -f vault vault.zip migration-role-id.txt migration-secret-id.txt || true
