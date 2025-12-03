@@ -38,11 +38,17 @@ jobs:
           done
           exit 1
 
+      - name: Enable AppRole auth method
+        run: |
+          set -euo pipefail
+          curl -s -X POST -H "X-Vault-Token: $ROOT_TOKEN" http://127.0.0.1:8200/v1/sys/auth/approle | jq .
+
       - name: Create policy + AppRole + save artifacts
         run: |
           set -euo pipefail
           ADMIN="$ROOT_TOKEN"
           curl -s -X POST -H "X-Vault-Token: $ADMIN" -d '{"policy":"path \"secret/data/migration/users/neoge\" { capabilities = [\"create\",\"update\",\"read\"] }"}' http://127.0.0.1:8200/v1/sys/policies/acl/migration-writer
+          curl -s -X POST -H "X-Vault-Token: $ADMIN" -d '{"type":"approle"}' http://127.0.0.1:8200/v1/sys/auth/approle
           curl -s -X POST -H "X-Vault-Token: $ADMIN" -d '{"token_policies":"migration-writer","token_ttl":"1h"}' http://127.0.0.1:8200/v1/auth/approle/role/migration-writer
           ROLE_ID=$(curl -s -H "X-Vault-Token: $ADMIN" http://127.0.0.1:8200/v1/auth/approle/role/migration-writer/role-id | jq -r .data.role_id)
           SECRET_ID=$(curl -s -X POST -H "X-Vault-Token: $ADMIN" -d '{}' http://127.0.0.1:8200/v1/auth/approle/role/migration-writer/secret-id | jq -r .data.secret_id)
