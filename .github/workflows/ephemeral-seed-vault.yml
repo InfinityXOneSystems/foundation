@@ -1,0 +1,65 @@
+name: Ephemeral Seed Vault (runner)
+
+on:
+  workflow_dispatch:
+
+jobs:
+  ephemeral-seed:
+    runs-on: ubuntu-latest
+    name: Ephemeral Vault dev -> create AppRole -> seed
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Generate ephemeral root token and mask it
+        id: gen
+        run: |
+          ROOT_TOKEN=$(openssl rand -hex 32)
+          echo "::add-mask::$ROOT_TOKEN"
+          echo "ROOT_TOKEN=$ROOT_TOKEN" >> $GITHUB_ENV
+
+      - name: Start Vault dev container
+        run: |
+          docker run --cap-add=IPC_LOCK -d --name vault-dev -e VAULT_DEV_ROOT_TOKEN_ID=${ROOT_TOKEN} -p 8200:8200 hashicorp/vault:1.14.2 server -dev -dev-root-token-id=${ROOT_TOKEN}
+
+      - name: Wait for Vault to respond
+        run: |
+          for i in {1..25}; do
+            if curl -sSf http://127.0.0.1:8200/v1/sys/health >/dev/null 2>&1; then
+              echo 'ready'; exit 0
+            fi
+            sleep 1
+          done
+          exit 1
+
+      - name: Decode seed env
+        run: |
+          echo "${{ secrets.SEED_ENV_B64 }}" | base64 -d > .env.seed
+
+      - name: Create AppRole and save ids
+        shell: pwsh
+        run: |
+          $root = $env:ROOT_TOKEN
+          pwsh ./scripts/create-approle.ps1 -VaultAddr 'http://127.0.0.1:8200' -AdminToken $root -NonInteractive
+          $role = (Get-Content migration-role-id.txt -Raw).Trim()
+          $secret = (Get-Content migration-secret-id.txt -Raw).Trim()
+          echo "::add-mask::$role"
+          echo "::add-mask::$secret"
+          echo "ROLE_ID=$role" >> $GITHUB_ENV
+          echo "SECRET_ID=$secret" >> $GITHUB_ENV
+
+      - name: Seed Vault from .env.seed
+        shell: pwsh
+        run: |
+          pwsh ./scripts/push-env-to-vault.ps1 -EnvFile '.env.seed' -VaultAddr 'http://127.0.0.1:8200' -RoleId $env:ROLE_ID -SecretId $env:SECRET_ID -VaultPath 'secret/data/foundation'
+
+      - name: Smoke test readback
+        run: |
+          token=$(curl -s -X POST -d '{"role_id":"'${ROLE_ID}'","secret_id":"'${SECRET_ID}'"}' http://127.0.0.1:8200/v1/auth/approle/login | jq -r '.auth.client_token')
+          echo "::add-mask::$token"
+          curl -s -H "X-Vault-Token: $token" http://127.0.0.1:8200/v1/secret/data/foundation | jq -S . | sed -n '1,120p'
+
+      - name: Cleanup
+        continue-on-error: true
+        run: |
+          docker rm -f vault-dev || true
