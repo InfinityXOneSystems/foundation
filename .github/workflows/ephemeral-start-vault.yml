@@ -1,0 +1,40 @@
+name: Ephemeral Start Vault
+
+on:
+  push:
+    branches: [ master ]
+  workflow_dispatch: {}
+
+jobs:
+  start-vault:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install tools
+        run: |
+          set -euo pipefail
+          sudo apt-get update -y
+          sudo apt-get install -y curl unzip openssl
+
+      - name: Download and run Vault (binary)
+        run: |
+          set -euo pipefail
+          VAULT_VER=1.14.2
+          curl -sSLo vault.zip https://releases.hashicorp.com/vault/${VAULT_VER}/vault_${VAULT_VER}_linux_amd64.zip
+          unzip -o vault.zip -d .
+          ./vault version
+          ROOT=$(openssl rand -hex 32)
+          echo "::add-mask::$ROOT"
+          ./vault server -dev -dev-root-token-id=$ROOT -dev-listen-address=127.0.0.1:8200 &
+          export VAULT_ADDR=http://127.0.0.1:8200
+          for i in {1..40}; do
+            if curl -sSf $VAULT_ADDR/v1/sys/health >/dev/null 2>&1; then
+              echo ready && break
+            fi
+            sleep 1
+          done
+          echo "VAULT_RUNNING"
+          pkill vault || true
+          rm -f vault.zip ./vault || true
