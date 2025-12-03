@@ -28,7 +28,7 @@ jobs:
           ROOT=$(openssl rand -hex 32)
           echo "::add-mask::$ROOT"
           ./vault server -dev -dev-root-token-id=$ROOT -dev-listen-address=127.0.0.1:8200 &
-          export VAULT_ADDR=http://127.0.0.1:8200
+          echo "VAULT_ADDR=http://127.0.0.1:8200" >> $GITHUB_ENV
           echo "ROOT_TOKEN=$ROOT" >> $GITHUB_ENV
           for i in {1..40}; do
             if curl -sSf $VAULT_ADDR/v1/sys/health >/dev/null 2>&1; then
@@ -73,3 +73,4 @@ jobs:
         run: |
           pkill vault || true
           rm -f vault vault.zip || true
+
