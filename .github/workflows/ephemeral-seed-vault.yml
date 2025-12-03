@@ -2,6 +2,9 @@ name: Ephemeral Seed Vault (runner)
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - master
 
 jobs:
   ephemeral-seed:
