@@ -37,21 +37,21 @@ jobs:
           echo "${{ secrets.SEED_ENV_B64 }}" | base64 -d > .env.seed
 
       - name: Create AppRole and save ids
-        shell: pwsh
+        shell: bash
         run: |
-          $root = $env:ROOT_TOKEN
-          pwsh ./scripts/create-approle.ps1 -VaultAddr 'http://127.0.0.1:8200' -AdminToken $root -NonInteractive
-          $role = (Get-Content migration-role-id.txt -Raw).Trim()
-          $secret = (Get-Content migration-secret-id.txt -Raw).Trim()
+          # Use pwsh to execute the PowerShell helper script; ensure correct flags on Linux runner
+          pwsh -NoProfile -NonInteractive -File ./scripts/create-approle.ps1 -VaultAddr 'http://127.0.0.1:8200' -AdminToken $ROOT_TOKEN -NonInteractive
+          role=$(cat migration-role-id.txt | tr -d '\n' || true)
+          secret=$(cat migration-secret-id.txt | tr -d '\n' || true)
           echo "::add-mask::$role"
           echo "::add-mask::$secret"
           echo "ROLE_ID=$role" >> $GITHUB_ENV
           echo "SECRET_ID=$secret" >> $GITHUB_ENV
 
       - name: Seed Vault from .env.seed
-        shell: pwsh
+        shell: bash
         run: |
-          pwsh ./scripts/push-env-to-vault.ps1 -EnvFile '.env.seed' -VaultAddr 'http://127.0.0.1:8200' -RoleId $env:ROLE_ID -SecretId $env:SECRET_ID -VaultPath 'secret/data/foundation'
+          pwsh -NoProfile -NonInteractive -File ./scripts/push-env-to-vault.ps1 -EnvFile '.env.seed' -VaultAddr 'http://127.0.0.1:8200' -RoleId $ROLE_ID -SecretId $SECRET_ID -VaultPath 'secret/data/foundation'
 
       - name: Smoke test readback
         run: |
