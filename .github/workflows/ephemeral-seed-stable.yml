@@ -55,6 +55,17 @@ jobs:
           echo "::add-mask::$SECRET_ID"
           echo "ROLE_ID=$ROLE" >> $GITHUB_ENV
           echo "SECRET_ID=$SECRET_ID" >> $GITHUB_ENV
+          # Save the artifacts so the runner returns them
+          echo "$ROLE" > migration-role-id.txt
+          echo "$SECRET_ID" > migration-secret-id.txt
+
+      - name: Upload AppRole artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: approle-artifacts
+          path: |
+            migration-role-id.txt
+            migration-secret-id.txt
 
       - name: Decode SEED_ENV_B64
         run: |
@@ -75,6 +86,12 @@ with open('.env.seed') as f:
     p[k.strip()]=v.strip()
 print(json.dumps({'data':p}))
 PY
+
+      - name: Upload payload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: payload-json
+          path: payload.json
 
       - name: Login AppRole & write KV v2
         run: |
