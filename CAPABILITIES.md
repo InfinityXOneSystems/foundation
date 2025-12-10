@@ -391,8 +391,10 @@ const taxonomy = new EnterpriseTaxonomy();
 
 // Get model information
 const gpt4 = taxonomy.getModel('openai', 'gpt-4o');
-console.log('Context window:', gpt4.token_limits.context_window); // 128000
-console.log('Capabilities:', gpt4.capabilities);
+if (gpt4) {
+  console.log('Context window:', gpt4.token_limits.context_window); // 128000
+  console.log('Capabilities:', gpt4.capabilities);
+}
 
 // Find models by capability
 const visionModels = taxonomy.getModelsByCapability('vision');
@@ -432,13 +434,12 @@ import { SOPSystem } from './sop/sop-system';
 const sopSystem = new SOPSystem();
 
 // Create SOP
-const sopId = sopSystem.createSOP(
+const sop = sopSystem.createSOP(
+  'sop-prod-deploy-001',
   'Production Deployment',
   'Standard procedure for deploying to production',
   'deployment',
   'critical',
-  'admin',
-  ['production', 'deployment', 'release'],
   [
     {
       step_number: 1,
@@ -455,11 +456,14 @@ const sopId = sopSystem.createSOP(
       responsible_role: 'DevOps Engineer',
       validation_criteria: ['All checks pass']
     }
-  ]
+  ],
+  'admin',
+  true,
+  ['production', 'deployment', 'release']
 );
 
 // Add approval
-sopSystem.addApproval(sopId, {
+sopSystem.addApproval(sop.id, {
   approver_id: 'user-123',
   approver_name: 'Jane Smith',
   status: 'approved',
@@ -469,7 +473,7 @@ sopSystem.addApproval(sopId, {
 
 // Record execution
 const executionId = sopSystem.recordExecution(
-  sopId,
+  sop.id,
   'operator-456',
   [
     { step_number: 1, status: 'completed', notes: 'All checks passed' }
@@ -777,25 +781,36 @@ GET  /api/health                 # Health check
 
 **QuantumMindOrchestrator:**
 ```typescript
-interface QuantumMindOrchestrator {
+class QuantumMindOrchestrator extends EventEmitter {
+  constructor(config: QuantumMindConfig);
+  
+  // Lifecycle methods
   initialize(): Promise<void>;
   start(): Promise<void>;
-  stop(): Promise<void>;
-  think(topic: string, description: string, options?: ThinkOptions): Promise<string>;
-  crawl(config: CrawlConfig): string;
-  queryPlatform(platform: string, query: string, options?: any): Promise<string>;
+  
+  // Statistics
   getStats(): QuantumMindStats;
-  getThought(thought_id: string): QuantumThought | undefined;
-  getIdea(idea_id: string): PersistentIdea | undefined;
-  queryMemory(query: MemoryQuery): SharedMemory[];
-  exportSystemState(): Record<string, unknown>;
 }
 ```
 
+**Note:** The orchestrator provides a foundation for system initialization and management. Access to thoughts, ideas, and memory queries is available through the `unifiedBrain`, `crawlerEngine`, and other specialized components.
+
 **SOPSystem:**
 ```typescript
-interface SOPSystem {
-  createSOP(...): string;
+class SOPSystem extends EventEmitter {
+  createSOP(
+    id: string,
+    title: string,
+    description: string,
+    category: SOPCategory,
+    priority: SOPPriority,
+    steps: SOPStep[],
+    creator: string,
+    requiresApproval?: boolean,
+    tags?: string[],
+    relatedSOPs?: string[]
+  ): SOP;
+  
   getSOP(id: string): SOP | undefined;
   updateSOP(id: string, updates: Partial<SOP>, updater: string): void;
   deleteSOP(id: string, deletedBy: string): boolean;
@@ -852,9 +867,9 @@ npm install
 npm test
 
 # Start services
-npm start                    # Smart router
-npm run api:mobile          # Mobile API
-npm run sync:secrets        # Sync secrets
+npm start                    # Smart router orchestrator
+npm run api:mobile          # Mobile API server
+npm run sync:secrets        # Sync GitHub secrets (both directions)
 ```
 
 ### Quick Start Example
