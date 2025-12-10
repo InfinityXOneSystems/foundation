@@ -977,7 +977,7 @@ Contributions welcome! Please:
 
 ## License
 
-MIT License - See [LICENSE](./LICENSE) file for details
+ISC License
 
 ---
 
