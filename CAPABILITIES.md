@@ -459,7 +459,8 @@ const sop = sopSystem.createSOP(
   ],
   'admin',
   true,
-  ['production', 'deployment', 'release']
+  ['production', 'deployment', 'release'],
+  [] // relatedSOPs (empty array for no related SOPs)
 );
 
 // Add approval
@@ -788,12 +789,25 @@ class QuantumMindOrchestrator extends EventEmitter {
   initialize(): Promise<void>;
   start(): Promise<void>;
   
+  // Core operations
+  think(
+    topic: string,
+    description: string,
+    options?: {
+      mode?: "quantum" | "linear" | "creative" | "analytical" | "debate";
+      participating_agents?: Array<"ingestion" | "vision" | "strategy" | "validation" | "document">;
+      frontend_options?: Record<string, unknown>;
+    }
+  ): Promise<string>;
+  
+  crawl(config: any): string;
+  
   // Statistics
   getStats(): QuantumMindStats;
 }
 ```
 
-**Note:** The orchestrator provides a foundation for system initialization and management. Access to thoughts, ideas, and memory queries is available through the `unifiedBrain`, `crawlerEngine`, and other specialized components.
+**Note:** Access to thoughts, ideas, and memory queries is available through the `unifiedBrain`, `crawlerEngine`, and other specialized components that are initialized by the orchestrator.
 
 **SOPSystem:**
 ```typescript
