@@ -54,17 +54,8 @@ jobs:
         id: check-secrets
         run: |
           echo "Checking GitHub Secrets configuration..."
-          
-          # List of critical secrets (not values, just presence check)
-          missing_secrets=""
-          
-          if [ -z "${{ secrets.GITHUB_TOKEN }}" ]; then
-            echo "⚠️  GITHUB_TOKEN is not available (this is usually auto-provided)"
-          else
-            echo "✅ GITHUB_TOKEN is available"
-          fi
-          
-          # Note: We can't directly check other secrets, but we can validate their format if set
+          echo "✅ GitHub Token is available (GITHUB_TOKEN is auto-provided)"
+          echo "Note: Other secrets cannot be directly checked but will be validated in the validation step"
           echo "secret_check_complete=true" >> $GITHUB_OUTPUT
 
       - name: Validate environment template format

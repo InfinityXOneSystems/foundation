@@ -40,21 +40,13 @@ export function createValidationResult(
   recommendation?: string | undefined,
   details?: Record<string, any> | undefined
 ): ValidationResult {
-  const result: ValidationResult = {
+  return {
     valid,
     service,
     variable,
     status: valid ? 'valid' : 'invalid',
     message,
+    ...(recommendation !== undefined && { recommendation }),
+    ...(details !== undefined && { details }),
   };
-  
-  if (recommendation !== undefined) {
-    result.recommendation = recommendation;
-  }
-  
-  if (details !== undefined) {
-    result.details = details;
-  }
-  
-  return result;
 }

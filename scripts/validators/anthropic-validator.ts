@@ -7,6 +7,7 @@ import { ValidationResult, ServiceValidator, maskCredential, createValidationRes
 
 export class AnthropicValidator implements ServiceValidator {
   name = 'Anthropic';
+  private readonly defaultModel = 'claude-3-5-sonnet-20241022';
 
   async validate(apiKey: string): Promise<ValidationResult> {
     if (!apiKey) {
@@ -29,7 +30,7 @@ export class AnthropicValidator implements ServiceValidator {
           'anthropic-version': '2023-06-01',
         },
         body: JSON.stringify({
-          model: 'claude-3-5-sonnet-20241022',
+          model: this.defaultModel,
           max_tokens: 10,
           messages: [
             {
@@ -49,7 +50,7 @@ export class AnthropicValidator implements ServiceValidator {
           'Valid Anthropic API key',
           undefined,
           {
-            model_tested: 'claude-3-5-sonnet-20241022',
+            model_tested: this.defaultModel,
             key_preview: maskCredential(apiKey),
           }
         );

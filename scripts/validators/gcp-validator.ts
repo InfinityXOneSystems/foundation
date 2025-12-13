@@ -83,7 +83,7 @@ export class GCPValidator implements ServiceValidator {
         'GOOGLE_GCP_AUTH_JSON',
         true,
         'GCP credentials format is valid',
-        'Note: Full authentication test requires API access. Test with: gcloud auth activate-service-account',
+        'Note: Full authentication test requires API access. Test with: gcloud auth activate-service-account --key-file=credentials.json',
         {
           project_id: gcpProjectId,
           client_email: credentialsObj.client_email,

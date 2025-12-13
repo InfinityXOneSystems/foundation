@@ -23,7 +23,6 @@ import { StripeValidator } from './validators/stripe-validator';
 import { TwilioValidator } from './validators/twilio-validator';
 import { SendGridValidator } from './validators/sendgrid-validator';
 import { GCPValidator } from './validators/gcp-validator';
-import { EnvironmentValidator, validators } from '../src/utils/env-validator';
 
 interface ValidationReport {
   timestamp: string;

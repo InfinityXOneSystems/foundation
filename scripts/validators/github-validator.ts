@@ -26,25 +26,12 @@ export class GitHubValidator implements ServiceValidator {
       // Test token by fetching user info
       const { data: user } = await octokit.rest.users.getAuthenticated();
       
-      // Check rate limit
+      // Check rate limit and scopes
       const { data: rateLimit } = await octokit.rest.rateLimit.get();
       
-      // Parse scopes from headers (if available)
-      let scopes: string[] = [];
-      try {
-        const scopeHeader = rateLimit as any;
-        if (scopeHeader && typeof scopeHeader === 'object') {
-          // Scopes are in X-OAuth-Scopes header
-          scopes = [];
-        }
-      } catch (e) {
-        // Ignore scope parsing errors
-      }
-
-      const requiredScopes = ['repo', 'workflow'];
-      const hasRequiredScopes = requiredScopes.every(scope => 
-        scopes.length === 0 || scopes.includes(scope)
-      );
+      // Note: Token scopes are not directly accessible via API in all contexts
+      // For comprehensive scope checking, use: gh api user -i | grep x-oauth-scopes
+      const scopes: string[] = [];
 
       const remaining = rateLimit.resources.core.remaining;
       const total = rateLimit.resources.core.limit;
@@ -54,12 +41,10 @@ export class GitHubValidator implements ServiceValidator {
         'GITHUB_TOKEN',
         true,
         `Valid token for user: ${user.login}`,
-        undefined,
+        'Note: Token scope validation requires additional permissions. Ensure token has repo, workflow scopes.',
         {
           user: user.login,
           rate_limit: `${remaining} / ${total}`,
-          scopes: scopes.length > 0 ? scopes : ['Unable to determine scopes'],
-          has_required_scopes: hasRequiredScopes || scopes.length === 0,
         }
       );
     } catch (error: any) {

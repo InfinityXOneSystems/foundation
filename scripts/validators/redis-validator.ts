@@ -79,6 +79,8 @@ export class RedisValidator implements ServiceValidator {
 
       socket.on('connect', () => {
         // Send PING command
+        // Note: This uses a simple Redis protocol for basic validation
+        // For production use, consider using a proper Redis client library (e.g., ioredis)
         let command = 'PING\r\n';
         if (password) {
           command = `AUTH ${password}\r\nPING\r\n`;
