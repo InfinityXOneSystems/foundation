@@ -1,0 +1,48 @@
+{
+  "model_id": "gpt-4o",
+  "provider": "openai",
+  "model_name": "GPT-4 Omni",
+  "version": "1.0",
+  "context_window": {
+    "tokens": 128000,
+    "effective_tokens": 120000
+  },
+  "cost": {
+    "input_per_1k": 0.0025,
+    "output_per_1k": 0.01,
+    "currency": "USD",
+    "free_tier": false
+  },
+  "capabilities": {
+    "text_generation": true,
+    "code_generation": true,
+    "function_calling": true,
+    "vision": true,
+    "json_mode": true,
+    "streaming": true
+  },
+  "performance_score": 95,
+  "safety_score": {
+    "overall": 92,
+    "prompt_injection_resistance": 90,
+    "pii_handling": 95,
+    "last_updated": "2025-12-06T05:52:36.598Z"
+  },
+  "audit_history": [
+    {
+      "timestamp": "2025-12-06T05:52:36.599Z",
+      "action": "created",
+      "user": "system",
+      "usage_count": 0
+    }
+  ],
+  "metadata": {
+    "deprecated": false,
+    "tags": [
+      "premium",
+      "vision-capable",
+      "function-calling"
+    ],
+    "notes": "Production-ready model with vision capabilities"
+  }
+}
