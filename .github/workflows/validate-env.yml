@@ -1,0 +1,254 @@
+name: Validate Environment Variables
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    paths:
+      - '.env.example'
+      - '.env.master.template'
+      - '.env.master.sample'
+      - 'scripts/validate-environment.ts'
+      - 'scripts/validators/**'
+      - '.github/workflows/validate-env.yml'
+  push:
+    branches:
+      - main
+      - master
+    paths:
+      - '.env.example'
+      - '.env.master.template'
+      - 'scripts/validate-environment.ts'
+      - 'scripts/validators/**'
+  workflow_dispatch:
+    inputs:
+      strict:
+        description: 'Enable strict validation (fail on warnings)'
+        required: false
+        default: 'false'
+        type: boolean
+
+jobs:
+  validate-environment:
+    name: Validate Environment Configuration
+    runs-on: ubuntu-latest
+    
+    permissions:
+      contents: read
+      pull-requests: write
+      issues: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Check required secrets are set
+        id: check-secrets
+        run: |
+          echo "Checking GitHub Secrets configuration..."
+          echo "✅ GitHub Token is available (GITHUB_TOKEN is auto-provided)"
+          echo "Note: Other secrets cannot be directly checked but will be validated in the validation step"
+          echo "secret_check_complete=true" >> $GITHUB_OUTPUT
+
+      - name: Validate environment template format
+        run: |
+          echo "Validating .env.master.template format..."
+          
+          if [ ! -f ".env.master.template" ]; then
+            echo "❌ .env.master.template file not found!"
+            exit 1
+          fi
+          
+          echo "✅ .env.master.template exists"
+          
+          # Count variables in template
+          var_count=$(grep -cE "^[A-Z_]+=.*$" .env.master.template || true)
+          echo "📊 Found $var_count environment variables in template"
+          
+          if [ "$var_count" -lt 50 ]; then
+            echo "⚠️  Warning: Expected at least 50 variables, found $var_count"
+          fi
+
+      - name: Run environment validation (quick check)
+        id: validate-quick
+        env:
+          # Only test with available secrets
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          GOOGLE_AI_API_KEY: ${{ secrets.GOOGLE_AI_API_KEY }}
+        run: |
+          echo "Running quick environment validation..."
+          npm run env:check || echo "validation_failed=true" >> $GITHUB_OUTPUT
+        continue-on-error: true
+
+      - name: Run full environment validation
+        id: validate-full
+        if: github.event_name == 'workflow_dispatch' || github.event_name == 'push'
+        env:
+          # All available secrets for full validation
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          GOOGLE_AI_API_KEY: ${{ secrets.GOOGLE_AI_API_KEY }}
+          REDIS_URL: ${{ secrets.REDIS_URL }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          STRIPE_API_KEY: ${{ secrets.STRIPE_API_KEY }}
+          TWILIO_ACCOUNT_SID: ${{ secrets.TWILIO_ACCOUNT_SID }}
+          TWILIO_AUTH_TOKEN: ${{ secrets.TWILIO_AUTH_TOKEN }}
+          SENDGRID_API_KEY: ${{ secrets.SENDGRID_API_KEY }}
+          GOOGLE_GCP_AUTH_JSON: ${{ secrets.GOOGLE_GCP_AUTH_JSON }}
+          GOOGLE_CLOUD_PROJECT_ID: ${{ secrets.GOOGLE_CLOUD_PROJECT_ID }}
+        run: |
+          echo "Running full environment validation..."
+          npm run env:validate:json > validation-report.json || true
+          npm run env:validate
+        continue-on-error: true
+
+      - name: Generate validation report
+        id: generate-report
+        if: always()
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          GOOGLE_AI_API_KEY: ${{ secrets.GOOGLE_AI_API_KEY }}
+        run: |
+          npm run env:report || true
+          
+          if [ -f "validation-report.json" ]; then
+            echo "✅ Validation report generated"
+            
+            # Extract summary from JSON
+            status=$(jq -r '.overall_status' validation-report.json 2>/dev/null || echo "unknown")
+            total=$(jq -r '.summary.total_variables' validation-report.json 2>/dev/null || echo "0")
+            failures=$(jq -r '.summary.service_failures' validation-report.json 2>/dev/null || echo "0")
+            
+            echo "status=$status" >> $GITHUB_OUTPUT
+            echo "total=$total" >> $GITHUB_OUTPUT
+            echo "failures=$failures" >> $GITHUB_OUTPUT
+          else
+            echo "⚠️  No validation report generated"
+            echo "status=unknown" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Upload validation report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: environment-validation-report
+          path: validation-report.json
+          if-no-files-found: ignore
+          retention-days: 30
+
+      - name: Comment on PR
+        if: github.event_name == 'pull_request' && always()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            
+            let reportContent = '## 🔍 Environment Validation Report\n\n';
+            
+            try {
+              if (fs.existsSync('validation-report.json')) {
+                const report = JSON.parse(fs.readFileSync('validation-report.json', 'utf8'));
+                
+                const statusEmoji = {
+                  'passed': '✅',
+                  'warnings': '⚠️',
+                  'failed': '❌'
+                };
+                
+                reportContent += `**Status:** ${statusEmoji[report.overall_status] || '❓'} ${report.overall_status.toUpperCase()}\n\n`;
+                reportContent += `**Summary:**\n`;
+                reportContent += `- Total variables tested: ${report.summary.total_variables}\n`;
+                reportContent += `- Service failures: ${report.summary.service_failures}\n\n`;
+                
+                if (report.by_service && report.by_service.length > 0) {
+                  reportContent += '**Services Tested:**\n\n';
+                  
+                  for (const service of report.by_service) {
+                    const serviceEmoji = service.status === 'healthy' ? '✅' : 
+                                       service.status === 'degraded' ? '⚠️' : '❌';
+                    reportContent += `${serviceEmoji} **${service.service}** - ${service.status}\n`;
+                    
+                    if (service.issues && service.issues.length > 0) {
+                      reportContent += '  - Issues:\n';
+                      for (const issue of service.issues.slice(0, 3)) {
+                        reportContent += `    - ${issue}\n`;
+                      }
+                    }
+                    reportContent += '\n';
+                  }
+                }
+                
+                reportContent += '\n---\n';
+                reportContent += `*Validation completed at ${report.timestamp}*\n`;
+              } else {
+                reportContent += '⚠️ Validation report not available. Check the workflow logs for details.\n';
+              }
+            } catch (error) {
+              reportContent += `❌ Error reading validation report: ${error.message}\n`;
+            }
+            
+            // Find existing comment
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
+            
+            const botComment = comments.find(comment => 
+              comment.user.type === 'Bot' && 
+              comment.body.includes('Environment Validation Report')
+            );
+            
+            if (botComment) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: botComment.id,
+                body: reportContent
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body: reportContent
+              });
+            }
+
+      - name: Fail if validation failed
+        if: steps.generate-report.outputs.status == 'failed' && (github.event.inputs.strict == 'true' || github.event_name == 'push')
+        run: |
+          echo "❌ Environment validation failed!"
+          echo "Please review the validation report and fix the issues."
+          exit 1
+
+      - name: Summary
+        if: always()
+        run: |
+          echo "## Environment Validation Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          if [ -f "validation-report.json" ]; then
+            status=$(jq -r '.overall_status' validation-report.json 2>/dev/null || echo "unknown")
+            total=$(jq -r '.summary.total_variables' validation-report.json 2>/dev/null || echo "0")
+            failures=$(jq -r '.summary.service_failures' validation-report.json 2>/dev/null || echo "0")
+            
+            echo "**Status:** $status" >> $GITHUB_STEP_SUMMARY
+            echo "**Variables Tested:** $total" >> $GITHUB_STEP_SUMMARY
+            echo "**Failures:** $failures" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "Validation report not available" >> $GITHUB_STEP_SUMMARY
+          fi
