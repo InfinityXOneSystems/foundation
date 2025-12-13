@@ -19,7 +19,13 @@
     "sync:secrets:mobile": "ts-node scripts/sync-secrets-cli.ts mobile",
     "api:mobile": "ts-node src/server/copilot-mobile-api.ts",
     "api:dev": "npm run api:mobile",
-    "setup:all-repos": "ts-node scripts/setup-secrets-all-repos.ts"
+    "setup:all-repos": "ts-node scripts/setup-secrets-all-repos.ts",
+    "env:validate": "ts-node --esm scripts/validate-environment.ts",
+    "env:validate:json": "ts-node --esm scripts/validate-environment.ts --format json",
+    "env:validate:ci": "ts-node --esm scripts/validate-environment.ts --strict",
+    "env:check": "ts-node --esm scripts/validate-environment.ts --quick",
+    "env:test-service": "ts-node --esm scripts/validate-environment.ts --service",
+    "env:report": "ts-node --esm scripts/validate-environment.ts --report"
   },
   "keywords": [],
   "author": "",
