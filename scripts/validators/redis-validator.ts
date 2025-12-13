@@ -3,7 +3,7 @@
  * Validates Redis connection
  */
 
-import { ValidationResult, ServiceValidator, createValidationResult } from './types.js';
+import { ValidationResult, ServiceValidator, createValidationResult } from './types';
 import * as net from 'net';
 import { URL } from 'url';
 

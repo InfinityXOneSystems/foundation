@@ -8,8 +8,8 @@ export interface ValidationResult {
   variable: string;
   status: 'valid' | 'invalid' | 'missing' | 'warning';
   message: string;
-  recommendation?: string;
-  details?: Record<string, any>;
+  recommendation?: string | undefined;
+  details?: Record<string, any> | undefined;
 }
 
 export interface ServiceValidator {
@@ -22,7 +22,7 @@ export interface ServiceHealth {
   status: 'healthy' | 'degraded' | 'unhealthy';
   variables_tested: string[];
   issues: string[];
-  details?: Record<string, any>;
+  details?: Record<string, any> | undefined;
 }
 
 export function maskCredential(credential: string, visibleChars: number = 8): string {
@@ -37,16 +37,24 @@ export function createValidationResult(
   variable: string,
   valid: boolean,
   message: string,
-  recommendation?: string,
-  details?: Record<string, any>
+  recommendation?: string | undefined,
+  details?: Record<string, any> | undefined
 ): ValidationResult {
-  return {
+  const result: ValidationResult = {
     valid,
     service,
     variable,
     status: valid ? 'valid' : 'invalid',
     message,
-    recommendation,
-    details,
   };
+  
+  if (recommendation !== undefined) {
+    result.recommendation = recommendation;
+  }
+  
+  if (details !== undefined) {
+    result.details = details;
+  }
+  
+  return result;
 }

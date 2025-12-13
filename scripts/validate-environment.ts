@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env ts-node
 /**
  * Environment Variable Validation Script
  * Validates all environment variables across the InfinityXOneSystems ecosystem
@@ -7,27 +7,23 @@
 import * as dotenv from 'dotenv';
 import * as fs from 'fs';
 import * as path from 'path';
-import { fileURLToPath } from 'url';
 
 // Load environment variables
 dotenv.config();
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
 // Import validators
-import { ValidationResult, ServiceHealth } from './validators/types.js';
-import { GitHubValidator } from './validators/github-validator.js';
-import { AnthropicValidator } from './validators/anthropic-validator.js';
-import { GeminiValidator } from './validators/gemini-validator.js';
-import { GroqValidator } from './validators/groq-validator.js';
-import { RedisValidator } from './validators/redis-validator.js';
-import { PostgreSQLValidator } from './validators/postgresql-validator.js';
-import { StripeValidator } from './validators/stripe-validator.js';
-import { TwilioValidator } from './validators/twilio-validator.js';
-import { SendGridValidator } from './validators/sendgrid-validator.js';
-import { GCPValidator } from './validators/gcp-validator.js';
-import { EnvironmentValidator, validators } from '../src/utils/env-validator.js';
+import { ValidationResult, ServiceHealth } from './validators/types';
+import { GitHubValidator } from './validators/github-validator';
+import { AnthropicValidator } from './validators/anthropic-validator';
+import { GeminiValidator } from './validators/gemini-validator';
+import { GroqValidator } from './validators/groq-validator';
+import { RedisValidator } from './validators/redis-validator';
+import { PostgreSQLValidator } from './validators/postgresql-validator';
+import { StripeValidator } from './validators/stripe-validator';
+import { TwilioValidator } from './validators/twilio-validator';
+import { SendGridValidator } from './validators/sendgrid-validator';
+import { GCPValidator } from './validators/gcp-validator';
+import { EnvironmentValidator, validators } from '../src/utils/env-validator';
 
 interface ValidationReport {
   timestamp: string;
@@ -116,12 +112,12 @@ async function validateEnvironment(): Promise<ValidationReport> {
     if (process.env.DATABASE_URL || (process.env.PG_HOST && process.env.PG_DATABASE)) {
       console.log('Testing PostgreSQL connection...');
       const result = await postgresValidator.validate({
-        url: process.env.DATABASE_URL,
-        host: process.env.PG_HOST,
+        url: process.env.DATABASE_URL || undefined,
+        host: process.env.PG_HOST || undefined,
         port: process.env.PG_PORT ? parseInt(process.env.PG_PORT) : undefined,
-        database: process.env.PG_DATABASE,
-        user: process.env.PG_USER,
-        password: process.env.PG_PASSWORD,
+        database: process.env.PG_DATABASE || undefined,
+        user: process.env.PG_USER || undefined,
+        password: process.env.PG_PASSWORD || undefined,
       });
       results.push(result);
     }
@@ -275,7 +271,7 @@ async function main() {
 
     // Write report file if requested
     if (flags.report) {
-      const reportPath = path.join(__dirname, '..', 'validation-report.json');
+      const reportPath = path.join(process.cwd(), 'validation-report.json');
       fs.writeFileSync(reportPath, JSON.stringify(report, null, 2));
       console.log(`\n📄 Report saved to: ${reportPath}`);
     }
@@ -295,8 +291,9 @@ async function main() {
 }
 
 // Run if called directly
-if (import.meta.url === `file://${process.argv[1]}`) {
-  main();
-}
+main().catch((error) => {
+  console.error('❌ Fatal error:', error);
+  process.exit(1);
+});
 
-export { validateEnvironment, ValidationReport };
+export type { ValidationReport };

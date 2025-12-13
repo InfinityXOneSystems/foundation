@@ -3,7 +3,7 @@
  * Validates Anthropic API keys for Claude models
  */
 
-import { ValidationResult, ServiceValidator, maskCredential, createValidationResult } from './types.js';
+import { ValidationResult, ServiceValidator, maskCredential, createValidationResult } from './types';
 
 export class AnthropicValidator implements ServiceValidator {
   name = 'Anthropic';

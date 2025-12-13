@@ -3,7 +3,7 @@
  * Validates Stripe API keys
  */
 
-import { ValidationResult, ServiceValidator, maskCredential, createValidationResult } from './types.js';
+import { ValidationResult, ServiceValidator, maskCredential, createValidationResult } from './types';
 
 export class StripeValidator implements ServiceValidator {
   name = 'Stripe';

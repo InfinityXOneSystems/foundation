@@ -3,7 +3,7 @@
  * Validates SendGrid API keys
  */
 
-import { ValidationResult, ServiceValidator, maskCredential, createValidationResult } from './types.js';
+import { ValidationResult, ServiceValidator, maskCredential, createValidationResult } from './types';
 
 export class SendGridValidator implements ServiceValidator {
   name = 'SendGrid';

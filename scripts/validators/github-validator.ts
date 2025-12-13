@@ -4,7 +4,7 @@
  */
 
 import { Octokit } from 'octokit';
-import { ValidationResult, ServiceValidator, maskCredential, createValidationResult } from './types.js';
+import { ValidationResult, ServiceValidator, maskCredential, createValidationResult } from './types';
 
 export class GitHubValidator implements ServiceValidator {
   name = 'GitHub';

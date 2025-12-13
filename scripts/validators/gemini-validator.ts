@@ -3,7 +3,7 @@
  * Validates Google AI API keys for Gemini models
  */
 
-import { ValidationResult, ServiceValidator, maskCredential, createValidationResult } from './types.js';
+import { ValidationResult, ServiceValidator, maskCredential, createValidationResult } from './types';
 
 export class GeminiValidator implements ServiceValidator {
   name = 'Gemini';

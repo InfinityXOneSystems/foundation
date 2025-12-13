@@ -3,17 +3,17 @@
  * Validates PostgreSQL database connection
  */
 
-import { ValidationResult, ServiceValidator, createValidationResult } from './types.js';
+import { ValidationResult, ServiceValidator, createValidationResult } from './types';
 import * as net from 'net';
 import { URL } from 'url';
 
 export interface PostgreSQLConfig {
-  host?: string;
-  port?: number;
-  database?: string;
-  user?: string;
-  password?: string;
-  url?: string;
+  host?: string | undefined;
+  port?: number | undefined;
+  database?: string | undefined;
+  user?: string | undefined;
+  password?: string | undefined;
+  url?: string | undefined;
 }
 
 export class PostgreSQLValidator implements ServiceValidator {

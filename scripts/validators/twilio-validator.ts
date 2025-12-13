@@ -3,7 +3,7 @@
  * Validates Twilio credentials
  */
 
-import { ValidationResult, ServiceValidator, maskCredential, createValidationResult } from './types.js';
+import { ValidationResult, ServiceValidator, maskCredential, createValidationResult } from './types';
 
 export class TwilioValidator implements ServiceValidator {
   name = 'Twilio';

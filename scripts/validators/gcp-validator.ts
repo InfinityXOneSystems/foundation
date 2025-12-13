@@ -3,7 +3,7 @@
  * Validates GCP service account credentials
  */
 
-import { ValidationResult, ServiceValidator, createValidationResult } from './types.js';
+import { ValidationResult, ServiceValidator, createValidationResult } from './types';
 
 export class GCPValidator implements ServiceValidator {
   name = 'Google Cloud Platform';
