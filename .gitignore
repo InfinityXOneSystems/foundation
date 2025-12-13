@@ -519,3 +519,27 @@ sync-conflicts/
 # ============================================================
 # END OF .GITIGNORE
 # ============================================================
+
+# JARVIS Workspace - Never commit secrets or logs
+secrets/
+*.key
+*.pem
+credentials.json
+. env. local
+.env.production
+*. pfx
+*.p12
+vault/
+logs/
+*. log
+
+# Windows
+Thumbs.db
+desktop.ini
+$RECYCLE.BIN/
+
+# VS Code
+.vscode/
+*. code-workspace
+
+desktop.ini
