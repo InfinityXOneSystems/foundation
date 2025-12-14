@@ -56,6 +56,11 @@ run() {
   fi
 }
 
+# JSON escaping helper function
+escape_json() {
+  echo "$1" | sed 's/\\/\\\\/g; s/"/\\"/g; s/\t/\\t/g; s/\r/\\r/g; s/\n/\\n/g'
+}
+
 # Structured logging function
 log() {
   local level="$1"
@@ -67,8 +72,8 @@ log() {
   if [ "$ENABLE_LOGGING" = "true" ]; then
     mkdir -p "$(dirname "$LOG_FILE")"
     # Escape message for JSON safety
-    local escaped_message=$(echo "$message" | sed 's/\\/\\\\/g; s/"/\\"/g; s/\t/\\t/g; s/\r/\\r/g; s/\n/\\n/g')
-    local escaped_repo=$(echo "$REPO" | sed 's/\\/\\\\/g; s/"/\\"/g')
+    local escaped_message=$(escape_json "$message")
+    local escaped_repo=$(escape_json "$REPO")
     echo "{\"timestamp\":\"$timestamp\",\"level\":\"$level\",\"repo\":\"$escaped_repo\",\"message\":\"$escaped_message\",\"correlationId\":\"$(uuidgen 2>/dev/null || echo $RANDOM)\"}" >> "$LOG_FILE"
   fi
   
@@ -87,11 +92,11 @@ send_notification() {
     color="#808080"  # fallback to gray
   fi
   
-  # Escape variables for JSON safety
-  local escaped_message=$(echo "$message" | sed 's/\\/\\\\/g; s/"/\\"/g; s/\t/\\t/g')
-  local escaped_repo=$(echo "$REPO" | sed 's/\\/\\\\/g; s/"/\\"/g')
-  local escaped_org=$(echo "$ORG" | sed 's/\\/\\\\/g; s/"/\\"/g')
-  local escaped_branch=$(echo "$BRANCH" | sed 's/\\/\\\\/g; s/"/\\"/g')
+  # Escape variables for JSON safety using helper function
+  local escaped_message=$(escape_json "$message")
+  local escaped_repo=$(escape_json "$REPO")
+  local escaped_org=$(escape_json "$ORG")
+  local escaped_branch=$(escape_json "$BRANCH")
   
   # Slack webhook
   if [ -n "$SLACK_WEBHOOK" ]; then
@@ -102,7 +107,7 @@ send_notification() {
   
   # Discord webhook
   if [ -n "$DISCORD_WEBHOOK" ]; then
-    local discord_color=$(echo $color | sed 's/#//;s/\(.\{2\}\)\(.\{2\}\)\(.\{2\}\)/0x\1\2\3/')
+    local discord_color=$(echo "$color" | sed 's/#//;s/\(.\{2\}\)\(.\{2\}\)\(.\{2\}\)/0x\1\2\3/')
     curl -X POST -H 'Content-type: application/json' \
       --data "{\"content\":\"**MCP Sync [$status]**: \`$escaped_repo\` - $escaped_message\",\"embeds\":[{\"color\":$discord_color,\"fields\":[{\"name\":\"Repository\",\"value\":\"$escaped_org/$escaped_repo\",\"inline\":true},{\"name\":\"Branch\",\"value\":\"$escaped_branch\",\"inline\":true}]}]}" \
       "$DISCORD_WEBHOOK" 2>/dev/null || true
@@ -197,14 +202,19 @@ if [ -f "${HOME}/.mcp/config/notifications.env" ]; then
   source "${HOME}/.mcp/config/notifications.env"
 fi
 
+# JSON escaping helper
+escape_json() {
+  echo "$1" | sed 's/\\/\\\\/g; s/"/\\"/g; s/\t/\\t/g; s/\r/\\r/g; s/\n/\\n/g'
+}
+
 # Structured logging
 log() {
   local level="$1"
   shift
   local message="$*"
-  # Portable timestamp
   local timestamp=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
-  echo "{\"timestamp\":\"$timestamp\",\"level\":\"$level\",\"message\":\"$message\"}"
+  local escaped_message=$(escape_json "$message")
+  echo "{\"timestamp\":\"$timestamp\",\"level\":\"$level\",\"message\":\"$escaped_message\"}"
 }
 
 # Requires inotifywait (inotify-tools) for Linux. On macOS use fswatch alternative manually.
@@ -232,8 +242,9 @@ while read -r directory events filename; do
       
       # Send success notification if webhook configured
       if [ -n "${SLACK_WEBHOOK:-}" ]; then
+        local repo_name=$(escape_json "$(basename "$REPO_DIR")")
         curl -X POST -H 'Content-type: application/json' \
-          --data "{\"text\":\"✅ Auto-sync: Changes pushed to \`$(basename $REPO_DIR)\`\"}" \
+          --data "{\"text\":\"✅ Auto-sync: Changes pushed to \`$repo_name\`\"}" \
           "$SLACK_WEBHOOK" 2>/dev/null || true
       fi
     else
@@ -274,6 +285,7 @@ set -euo pipefail
 # mcp_health.sh - Health check and metrics endpoint for MCP sync tools
 
 PORT="${MCP_HEALTH_PORT:-8080}"
+BIND_ADDR="${MCP_HEALTH_BIND:-127.0.0.1}"
 METRICS_FILE="${HOME}/.mcp/metrics/mcp_sync_metrics.log"
 LOG_FILE="${HOME}/.mcp/logs/mcp_sync.log"
 
@@ -337,8 +349,8 @@ metrics_endpoint() {
     local sync_count=$(grep -c "sync_duration_seconds" "$METRICS_FILE" 2>/dev/null || echo "0")
     metrics+="mcp_sync_total $sync_count\n"
     
-    # Average sync duration
-    local avg_duration=$(awk -F, '$2=="sync_duration_seconds" {sum+=$3; count++} END {if(count>0) print sum/count; else print 0}' "$METRICS_FILE")
+    # Average sync duration (already a float, no need to validate as integer)
+    local avg_duration=$(awk -F, '$2=="sync_duration_seconds" {sum+=$3; count++} END {if(count>0) printf "%.2f", sum/count; else print 0}' "$METRICS_FILE")
     metrics+="# HELP mcp_sync_duration_seconds_avg Average sync duration\n"
     metrics+="# TYPE mcp_sync_duration_seconds_avg gauge\n"
     metrics+="mcp_sync_duration_seconds_avg $avg_duration\n"
@@ -350,8 +362,9 @@ metrics_endpoint() {
 }
 
 # Simple HTTP server
-echo "Starting MCP health check server on port $PORT..."
+echo "Starting MCP health check server on $BIND_ADDR:$PORT..."
 echo "Endpoints: /health, /ready, /metrics"
+echo "Note: Bound to $BIND_ADDR for security. Set MCP_HEALTH_BIND=0.0.0.0 to expose on all interfaces."
 
 while true; do
   {
@@ -374,11 +387,17 @@ while true; do
     esac
   } | {
     # Portable netcat usage - try different implementations
+    # Bind to localhost by default for security
     if command -v nc.traditional >/dev/null 2>&1; then
-      nc.traditional -l -p "$PORT"
+      nc.traditional -l -s "$BIND_ADDR" -p "$PORT"
     elif nc -h 2>&1 | grep -q "\-l.*listen"; then
-      # BSD/macOS netcat
-      nc -l "$PORT"
+      # BSD/macOS netcat - doesn't support -s for binding address
+      if [ "$BIND_ADDR" = "127.0.0.1" ] || [ "$BIND_ADDR" = "localhost" ]; then
+        nc -l "$PORT"
+      else
+        echo "Warning: This netcat version may not support binding to specific addresses" >&2
+        nc -l "$PORT"
+      fi
     else
       # Fallback: try standard nc -l
       nc -l "$PORT" 2>/dev/null || nc -l -p "$PORT" 2>/dev/null
