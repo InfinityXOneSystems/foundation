@@ -516,6 +516,12 @@ audit-trail.encrypted
 .sync-state/
 sync-conflicts/
 
+# Secrets sync daemon state
+.infinity-x-one/
+secrets-sync-state.json
+secrets-sync.lock
+repo-cache.json
+
 # ============================================================
 # END OF .GITIGNORE
 # ============================================================
