@@ -27,7 +27,7 @@
   "type": "commonjs",
   "devDependencies": {
     "@jest/globals": "^30.0.0",
-    "@types/express": "^5.0.5",
+    "@types/express": "^5.0.6",
     "@types/jest": "^30.0.0",
     "@types/node": "^24.10.1",
     "@typescript-eslint/eslint-plugin": "^8.48.0",
@@ -41,7 +41,7 @@
   },
   "dependencies": {
     "dotenv": "^17.2.3",
-    "express": "^5.1.0",
+    "express": "^5.2.1",
     "octokit": "^5.0.5"
   },
   "jest": {
