@@ -37,6 +37,7 @@ export class SecretsSyncDaemon {
   private isRunning: boolean = false;
   private intervalHandle: NodeJS.Timeout | null = null;
   private shutdownRequested: boolean = false;
+  private signalHandler: (() => Promise<void>) | null = null;
 
   constructor(config: DaemonConfig, syncFunction: SyncFunction) {
     this.config = config;
@@ -97,6 +98,13 @@ export class SecretsSyncDaemon {
     if (this.intervalHandle) {
       clearTimeout(this.intervalHandle);
       this.intervalHandle = null;
+    }
+
+    // Remove signal handlers
+    if (this.signalHandler) {
+      process.removeListener("SIGINT", this.signalHandler);
+      process.removeListener("SIGTERM", this.signalHandler);
+      this.signalHandler = null;
     }
 
     // Remove lock file
@@ -176,15 +184,15 @@ export class SecretsSyncDaemon {
    * Setup signal handlers for graceful shutdown
    */
   private setupSignalHandlers(): void {
-    const handler = async () => {
+    this.signalHandler = async () => {
       if (!this.shutdownRequested) {
         await this.stop();
         process.exit(0);
       }
     };
 
-    process.on("SIGINT", handler);
-    process.on("SIGTERM", handler);
+    process.on("SIGINT", this.signalHandler);
+    process.on("SIGTERM", this.signalHandler);
   }
 
   /**

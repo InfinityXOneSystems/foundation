@@ -528,8 +528,8 @@ async function handleDaemonMode(config: SyncConfig) {
 
   await daemon.start();
   
-  // Keep process alive
-  await new Promise(() => {}); // Infinite wait
+  // Keep process alive indefinitely - daemon will exit on SIGINT/SIGTERM
+  await new Promise<never>(() => {}); // Intentional: infinite wait for signal
 }
 
 /**
