@@ -210,6 +210,7 @@ secrets-manifest.json
 mobile-*.json
 tokens-*.json
 secrets-*.json
+!config/secrets-sync.config.json
 
 # ============================================================
 # NEVER COMMIT (EXPLICIT ENFORCEMENT)
