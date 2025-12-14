@@ -61,11 +61,15 @@ log() {
   local level="$1"
   shift
   local message="$*"
-  local timestamp=$(date -u +"%Y-%m-%dT%H:%M:%S.%3NZ")
+  # Portable timestamp (works on both Linux and macOS)
+  local timestamp=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
   
   if [ "$ENABLE_LOGGING" = "true" ]; then
     mkdir -p "$(dirname "$LOG_FILE")"
-    echo "{\"timestamp\":\"$timestamp\",\"level\":\"$level\",\"repo\":\"$REPO\",\"message\":\"$message\",\"correlationId\":\"$(uuidgen 2>/dev/null || echo $RANDOM)\"}" >> "$LOG_FILE"
+    # Escape message for JSON safety
+    local escaped_message=$(echo "$message" | sed 's/\\/\\\\/g; s/"/\\"/g; s/\t/\\t/g; s/\r/\\r/g; s/\n/\\n/g')
+    local escaped_repo=$(echo "$REPO" | sed 's/\\/\\\\/g; s/"/\\"/g')
+    echo "{\"timestamp\":\"$timestamp\",\"level\":\"$level\",\"repo\":\"$escaped_repo\",\"message\":\"$escaped_message\",\"correlationId\":\"$(uuidgen 2>/dev/null || echo $RANDOM)\"}" >> "$LOG_FILE"
   fi
   
   # Console output
@@ -78,26 +82,36 @@ send_notification() {
   local message="$2"
   local color="${3:-#808080}"
   
-  local payload="{\"text\":\"MCP Sync [$status]: $REPO - $message\",\"status\":\"$status\",\"timestamp\":\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"}"
+  # Validate hex color format
+  if ! echo "$color" | grep -qE '^#[0-9A-Fa-f]{6}$'; then
+    color="#808080"  # fallback to gray
+  fi
+  
+  # Escape variables for JSON safety
+  local escaped_message=$(echo "$message" | sed 's/\\/\\\\/g; s/"/\\"/g; s/\t/\\t/g')
+  local escaped_repo=$(echo "$REPO" | sed 's/\\/\\\\/g; s/"/\\"/g')
+  local escaped_org=$(echo "$ORG" | sed 's/\\/\\\\/g; s/"/\\"/g')
+  local escaped_branch=$(echo "$BRANCH" | sed 's/\\/\\\\/g; s/"/\\"/g')
   
   # Slack webhook
   if [ -n "$SLACK_WEBHOOK" ]; then
     curl -X POST -H 'Content-type: application/json' \
-      --data "{\"text\":\"MCP Sync [$status]: \`$REPO\` - $message\",\"attachments\":[{\"color\":\"$color\",\"fields\":[{\"title\":\"Repository\",\"value\":\"$ORG/$REPO\",\"short\":true},{\"title\":\"Branch\",\"value\":\"$BRANCH\",\"short\":true}]}]}" \
+      --data "{\"text\":\"MCP Sync [$status]: \`$escaped_repo\` - $escaped_message\",\"attachments\":[{\"color\":\"$color\",\"fields\":[{\"title\":\"Repository\",\"value\":\"$escaped_org/$escaped_repo\",\"short\":true},{\"title\":\"Branch\",\"value\":\"$escaped_branch\",\"short\":true}]}]}" \
       "$SLACK_WEBHOOK" 2>/dev/null || true
   fi
   
   # Discord webhook
   if [ -n "$DISCORD_WEBHOOK" ]; then
+    local discord_color=$(echo $color | sed 's/#//;s/\(.\{2\}\)\(.\{2\}\)\(.\{2\}\)/0x\1\2\3/')
     curl -X POST -H 'Content-type: application/json' \
-      --data "{\"content\":\"**MCP Sync [$status]**: \`$REPO\` - $message\",\"embeds\":[{\"color\":$(echo $color | sed 's/#//;s/\(.\{2\}\)\(.\{2\}\)\(.\{2\}\)/0x\1\2\3/'),\"fields\":[{\"name\":\"Repository\",\"value\":\"$ORG/$REPO\",\"inline\":true},{\"name\":\"Branch\",\"value\":\"$BRANCH\",\"inline\":true}]}]}" \
+      --data "{\"content\":\"**MCP Sync [$status]**: \`$escaped_repo\` - $escaped_message\",\"embeds\":[{\"color\":$discord_color,\"fields\":[{\"name\":\"Repository\",\"value\":\"$escaped_org/$escaped_repo\",\"inline\":true},{\"name\":\"Branch\",\"value\":\"$escaped_branch\",\"inline\":true}]}]}" \
       "$DISCORD_WEBHOOK" 2>/dev/null || true
   fi
   
   # Teams webhook
   if [ -n "$TEAMS_WEBHOOK" ]; then
     curl -X POST -H 'Content-type: application/json' \
-      --data "{\"@type\":\"MessageCard\",\"@context\":\"http://schema.org/extensions\",\"themeColor\":\"$color\",\"summary\":\"MCP Sync $status\",\"sections\":[{\"activityTitle\":\"MCP Sync [$status]\",\"activitySubtitle\":\"$ORG/$REPO\",\"facts\":[{\"name\":\"Repository:\",\"value\":\"$ORG/$REPO\"},{\"name\":\"Branch:\",\"value\":\"$BRANCH\"},{\"name\":\"Message:\",\"value\":\"$message\"}]}]}" \
+      --data "{\"@type\":\"MessageCard\",\"@context\":\"http://schema.org/extensions\",\"themeColor\":\"$color\",\"summary\":\"MCP Sync $status\",\"sections\":[{\"activityTitle\":\"MCP Sync [$status]\",\"activitySubtitle\":\"$escaped_org/$escaped_repo\",\"facts\":[{\"name\":\"Repository:\",\"value\":\"$escaped_org/$escaped_repo\"},{\"name\":\"Branch:\",\"value\":\"$escaped_branch\"},{\"name\":\"Message:\",\"value\":\"$escaped_message\"}]}]}" \
       "$TEAMS_WEBHOOK" 2>/dev/null || true
   fi
 }
@@ -188,7 +202,8 @@ log() {
   local level="$1"
   shift
   local message="$*"
-  local timestamp=$(date -u +"%Y-%m-%dT%H:%M:%S.%3NZ")
+  # Portable timestamp
+  local timestamp=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
   echo "{\"timestamp\":\"$timestamp\",\"level\":\"$level\",\"message\":\"$message\"}"
 }
 
@@ -282,8 +297,12 @@ health_check() {
     checks='{"git":"missing","disk":"ok"}'
   fi
   
-  # Check disk space
-  local disk_usage=$(df -h "${HOME}" | awk 'NR==2 {print $5}' | sed 's/%//')
+  # Check disk space (portable across Linux and macOS)
+  local disk_usage=$(df -h "${HOME}" 2>/dev/null | awk 'NR==2 {print $5}' | sed 's/%//' || echo "0")
+  # Validate disk_usage is a number
+  if ! echo "$disk_usage" | grep -qE '^[0-9]+$'; then
+    disk_usage=0
+  fi
   if [ "$disk_usage" -gt 90 ]; then
     status="degraded"
   fi
@@ -314,7 +333,8 @@ metrics_endpoint() {
   metrics+="# TYPE mcp_sync_total counter\n"
   
   if [ -f "$METRICS_FILE" ]; then
-    local sync_count=$(wc -l < "$METRICS_FILE")
+    # Count only sync_duration_seconds metrics for accurate sync count
+    local sync_count=$(grep -c "sync_duration_seconds" "$METRICS_FILE" 2>/dev/null || echo "0")
     metrics+="mcp_sync_total $sync_count\n"
     
     # Average sync duration
@@ -352,7 +372,18 @@ while true; do
         respond "404 Not Found" "text/plain" "Not Found"
         ;;
     esac
-  } | nc -l -p "$PORT" || true
+  } | {
+    # Portable netcat usage - try different implementations
+    if command -v nc.traditional >/dev/null 2>&1; then
+      nc.traditional -l -p "$PORT"
+    elif nc -h 2>&1 | grep -q "\-l.*listen"; then
+      # BSD/macOS netcat
+      nc -l "$PORT"
+    else
+      # Fallback: try standard nc -l
+      nc -l "$PORT" 2>/dev/null || nc -l -p "$PORT" 2>/dev/null
+    fi
+  } || true
 done
 HEALTH
 
