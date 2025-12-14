@@ -19,7 +19,11 @@
     "sync:secrets:mobile": "ts-node scripts/sync-secrets-cli.ts mobile",
     "api:mobile": "ts-node src/server/copilot-mobile-api.ts",
     "api:dev": "npm run api:mobile",
-    "setup:all-repos": "ts-node scripts/setup-secrets-all-repos.ts"
+    "setup:all-repos": "ts-node scripts/setup-secrets-all-repos.ts",
+    "secrets:setup": "ts-node scripts/setup-secrets-all-repos.ts --once",
+    "secrets:daemon": "ts-node scripts/setup-secrets-all-repos.ts --daemon",
+    "secrets:discover": "ts-node scripts/setup-secrets-all-repos.ts --discover",
+    "secrets:status": "ts-node scripts/setup-secrets-all-repos.ts --status"
   },
   "keywords": [],
   "author": "",
