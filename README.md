@@ -45,3 +45,35 @@ bash ./start-auto.sh
 ---
 
 ## For more details, see `runbooks/auto-all.md` and `architecture.md`.
+
+---
+
+## Secrets Management & Auto-Discovery
+
+The foundation repository includes an advanced **Secrets Sync System** with auto-discovery and 24/7 daemon mode.
+
+### Quick Start
+
+```bash
+# Discover all repositories
+npm run secrets:discover
+
+# Setup secrets once (original behavior)
+npm run secrets:setup
+
+# Start 24/7 daemon mode
+npm run secrets:daemon
+
+# Check sync status
+npm run secrets:status
+```
+
+### Features
+- 🔍 **Auto-Discovery**: Automatically finds all InfinityXOneSystems repositories
+- 🔄 **24/7 Daemon**: Continuous operation with configurable sync intervals
+- 🔐 **Smart Secrets**: Auto-generates `.gitignore`, `.env.local`, and manifests
+- 📊 **Status Tracking**: Real-time sync status and health monitoring
+
+For detailed documentation, see [`docs/SECRETS-SYNC-DAEMON.md`](docs/SECRETS-SYNC-DAEMON.md).
+
+---

@@ -1,0 +1,49 @@
+{
+  "timestamp": "2025-12-15T02:45:01.062Z",
+  "overall_status": "WARN",
+  "checks": {
+    "Lint": {
+      "status": "FAIL",
+      "required": false,
+      "duration_ms": 2286,
+      "error": "Command failed: npm run lint",
+      "output": "\n> foundation@1.0.0 lint\n> eslint .\n\n\n/home/runner/work/foundation/foundation/communications/src/docs_connector.ts\n  58:13  warning  'updateResponse' is assigned a value but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars\n\n/home/runner/work/foundation/foundation/communications/src/gmail_connector.ts\n  108:9  error  Strings must use doublequote  quotes\n\n/home/runner/work/foundation/foundation/communications/src/main.ts\n   46:31  warning  'voiceName' is assigned"
+    },
+    "TypeCheck": {
+      "status": "FAIL",
+      "required": false,
+      "duration_ms": 9599,
+      "error": "Command failed: npx tsc --noEmit",
+      "output": "communications/src/calendar_connector.ts(63,7): error TS2322: Type 'GaxiosResponseWithHTTP2<Schema$Event>' is not assignable to type 'GaxiosResponse<Schema$Event>'.\n  Types of property 'headers' are incompatible.\n    Type 'IncomingHttpHeaders & IncomingHttpStatusHeader' is missing the following properties from type 'Headers': append, delete, get, getSetCookie, and 7 more.\ncommunications/src/calendar_connector.ts(92,7): error TS2322: Type 'GaxiosResponseWithHTTP2<Schema$FreeBusyResponse>' is not "
+    },
+    "Unit Tests": {
+      "status": "PASS",
+      "required": true,
+      "duration_ms": 1486,
+      "output": "\n> foundation@1.0.0 test\n> jest\n\n"
+    },
+    "Build": {
+      "status": "FAIL",
+      "required": false,
+      "duration_ms": 130,
+      "error": "Command failed: npm run build\nnpm error Missing script: \"build\"\nnpm error\nnpm error To see a list of scripts, run:\nnpm error   npm run\nnpm error A complete log of this run can be found in: /home/runner/.npm/_logs/2025-12-15T02_45_14_633Z-debug-0.log\n",
+      "output": ""
+    },
+    "Integration Tests": {
+      "status": "FAIL",
+      "required": false,
+      "duration_ms": 129,
+      "error": "Command failed: npm run test:integration\nnpm error Missing script: \"test:integration\"\nnpm error\nnpm error To see a list of scripts, run:\nnpm error   npm run\nnpm error A complete log of this run can be found in: /home/runner/.npm/_logs/2025-12-15T02_45_14_888Z-debug-0.log\n",
+      "output": ""
+    }
+  },
+  "summary": {
+    "total_checks": 5,
+    "passed": 1,
+    "failed": 4,
+    "skipped": 0,
+    "required_failed": 0,
+    "duration_ms": 13881,
+    "duration_readable": "13.88s"
+  }
+}

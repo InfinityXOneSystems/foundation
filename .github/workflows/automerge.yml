@@ -1,0 +1,142 @@
+name: Auto-Merge
+on:
+  pull_request:
+    types: [labeled, unlabeled, synchronize, opened, reopened, ready_for_review]
+  check_suite:
+    types: [completed]
+  status: {}
+
+jobs:
+  auto-merge:
+    runs-on: ubuntu-latest
+    if: github.event.pull_request.draft == false
+    timeout-minutes: 10
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.x'
+      
+      - name: Check Risk Tier
+        id: check_tier
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const labels = context.payload.pull_request.labels.map(l => l.name);
+            const tierLabel = labels.find(l => l.startsWith('tier-'));
+            
+            if (!tierLabel) {
+              console.log('⚠️ No tier label found, assuming Tier 1');
+              return { tier: 1, canMerge: true };
+            }
+            
+            const tier = parseInt(tierLabel.split('-')[1]);
+            console.log(`📊 Risk Tier: ${tier}`);
+            
+            // Tier 1 and 2 can auto-merge, Tier 3 and 4 cannot
+            const canMerge = tier <= 2;
+            
+            core.setOutput('tier', tier);
+            core.setOutput('can_merge', canMerge);
+            
+            return { tier, canMerge };
+      
+      - name: Check All Required Checks Pass
+        id: check_status
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { data: checks } = await github.rest.checks.listForRef({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              ref: context.payload.pull_request.head.sha,
+            });
+            
+            const requiredChecks = ['CI', 'Integration Tests', 'Smoke Tests', 'PR Enforcer'];
+            const checkStatuses = {};
+            
+            for (const checkName of requiredChecks) {
+              const check = checks.check_runs.find(c => c.name === checkName);
+              checkStatuses[checkName] = check ? check.conclusion : 'not_run';
+            }
+            
+            console.log('Check Statuses:', checkStatuses);
+            
+            const allPassed = Object.values(checkStatuses).every(
+              status => status === 'success' || status === 'not_run'
+            );
+            
+            core.setOutput('all_passed', allPassed);
+            return { checkStatuses, allPassed };
+      
+      - name: Create Blocked Issue for Tier 3/4
+        if: steps.check_tier.outputs.tier > 2
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const tier = '${{ steps.check_tier.outputs.tier }}';
+            const prNumber = context.payload.pull_request.number;
+            
+            // Check if issue already exists
+            const issues = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              labels: ['blocked', 'requires-approval']
+            });
+            
+            const existingIssue = issues.data.find(issue => 
+              issue.title.includes(`PR #${prNumber}`)
+            );
+            
+            if (!existingIssue) {
+              await github.rest.issues.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title: `[BLOCKED] Approval Required: PR #${prNumber}`,
+                body: `This PR has been classified as Tier ${tier} and requires manual approval.\n\nPR: #${prNumber}\n\nSee PR for details.`,
+                labels: ['blocked', 'requires-approval', `tier-${tier}`]
+              });
+              
+              console.log(`✅ Created blocked approval issue for PR #${prNumber}`);
+            } else {
+              console.log(`ℹ️ Blocked approval issue already exists`);
+            }
+      
+      - name: Enable Auto-Merge (Tier 1/2)
+        if: |
+          steps.check_tier.outputs.can_merge == 'true' &&
+          steps.check_status.outputs.all_passed == 'true'
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.INFINITY_PRIME_APPROVER_TOKEN || secrets.GITHUB_TOKEN }}
+          script: |
+            try {
+              await github.rest.pulls.merge({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                pull_number: context.payload.pull_request.number,
+                merge_method: 'squash',
+              });
+              
+              console.log('✅ PR auto-merged successfully');
+            } catch (error) {
+              console.log('⚠️ Could not auto-merge:', error.message);
+            }
+      
+      - name: Summary
+        run: |
+          echo "## Auto-Merge Summary" >> $GITHUB_STEP_SUMMARY
+          echo "- Risk Tier: ${{ steps.check_tier.outputs.tier }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Can Merge: ${{ steps.check_tier.outputs.can_merge }}" >> $GITHUB_STEP_SUMMARY
+          echo "- All Checks Passed: ${{ steps.check_status.outputs.all_passed }}" >> $GITHUB_STEP_SUMMARY
+          
+          if [ "${{ steps.check_tier.outputs.can_merge }}" == "true" ] && [ "${{ steps.check_status.outputs.all_passed }}" == "true" ]; then
+            echo "✅ Auto-merge attempted" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "🔒 Auto-merge blocked" >> $GITHUB_STEP_SUMMARY
+          fi

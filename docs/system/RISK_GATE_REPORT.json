@@ -1,0 +1,11 @@
+{
+  "timestamp": "2025-12-15T02:44:22.967Z",
+  "risk_tier": 1,
+  "risk_score": 0,
+  "tier_label": "SAFE - Auto-merge eligible",
+  "auto_merge_allowed": true,
+  "risk_factors": [],
+  "changed_files_count": 0,
+  "changed_files": [],
+  "rules_version": "1.0.0"
+}

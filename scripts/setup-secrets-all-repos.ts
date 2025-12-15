@@ -2,13 +2,17 @@
 // scripts/setup-secrets-all-repos.ts
 // Master setup script for configuring encryption, gitignore, and secrets sync
 // across all InfinityXOneSystems repositories
+// Supports: --once (default), --daemon, --discover, --status
 
 import * as fs from "fs";
 import * as path from "path";
 import * as crypto from "crypto";
+import { GitHubRepoDiscovery, Repository } from "../src/services/github-repo-discovery";
+import { SecretsSyncDaemon } from "../src/services/secrets-sync-daemon";
 
 const REPOS_ROOT = process.env.REPOS_ROOT || path.join(process.env.HOME || process.env.USERPROFILE || "~", "Documents/InfinityXOneSystems");
-const REPOS = ["foundation", "frontend", "backend", "ai-orchestrator"];
+const REPOS = ["foundation", "frontend", "backend", "ai-orchestrator"]; // Fallback hardcoded list
+const CONFIG_PATH = path.join(__dirname, "../config/secrets-sync.config.json");
 
 interface SecretConfig {
   repoName: string;
@@ -25,8 +29,113 @@ interface SetupResult {
   secretsCount?: number;
 }
 
-console.log("🔐 Infinity X One Systems - Master Secrets Setup");
-console.log("================================================\n");
+interface SyncConfig {
+  github: {
+    organization: string;
+    token_env_var: string;
+  };
+  sync: {
+    enabled: boolean;
+    interval_hours: number;
+    auto_start: boolean;
+  };
+  repos: {
+    exclude: string[];
+    include_archived: boolean;
+    include_private: boolean;
+  };
+  secrets: {
+    encryption_key_length: number;
+    auto_rotate_keys: boolean;
+  };
+}
+
+// Command-line arguments
+const args = process.argv.slice(2);
+const mode = args.find((arg) => arg.startsWith("--"))?.toLowerCase() || "--once";
+
+// Log header
+function logHeader() {
+  console.log("🔐 Infinity X One Systems - Master Secrets Setup");
+  console.log("================================================\n");
+}
+
+/**
+ * Load configuration
+ */
+function loadConfig(): SyncConfig {
+  try {
+    if (fs.existsSync(CONFIG_PATH)) {
+      return JSON.parse(fs.readFileSync(CONFIG_PATH, "utf-8"));
+    }
+  } catch (error) {
+    console.debug("Failed to load config, using defaults:", error);
+  }
+
+  // Return default config
+  return {
+    github: {
+      organization: "InfinityXOneSystems",
+      token_env_var: "GITHUB_TOKEN",
+    },
+    sync: {
+      enabled: true,
+      interval_hours: 6,
+      auto_start: true,
+    },
+    repos: {
+      exclude: [],
+      include_archived: false,
+      include_private: true,
+    },
+    secrets: {
+      encryption_key_length: 32,
+      auto_rotate_keys: false,
+    },
+  };
+}
+
+/**
+ * Get GitHub token from environment
+ */
+function getGitHubToken(config: SyncConfig): string | null {
+  const token = process.env[config.github.token_env_var];
+  if (!token) {
+    console.warn(`⚠️  ${config.github.token_env_var} not set in environment`);
+    return null;
+  }
+  return token;
+}
+
+/**
+ * Discover repositories from GitHub
+ */
+async function discoverRepositories(config: SyncConfig, forceRefresh = false): Promise<string[]> {
+  const token = getGitHubToken(config);
+  
+  if (!token) {
+    console.log("⚠️  GitHub token not available, using fallback hardcoded list");
+    return REPOS;
+  }
+
+  try {
+    const discovery = new GitHubRepoDiscovery(token, {
+      organization: config.github.organization,
+      includeArchived: config.repos.include_archived,
+      includePrivate: config.repos.include_private,
+      excludeRepos: config.repos.exclude,
+    });
+
+    await discovery.checkRateLimit();
+    const repos = await discovery.discoverRepositories(forceRefresh);
+    
+    return repos.map((repo) => repo.name);
+  } catch (error) {
+    console.error("❌ Failed to discover repositories:", error);
+    console.log("⚠️  Falling back to hardcoded repository list");
+    return REPOS;
+  }
+}
 
 /**
  * Generate cryptographically secure encryption key
@@ -202,6 +311,7 @@ GOOGLE_SERVICE_ACCOUNT_KEY_PATH=./config/google-service-account.json
 # ============================================================
 GITHUB_TOKEN=your-github-token-here
 GITHUB_REPO=InfinityXOneSystems/${config.repoName}
+INFINITY_PRIME_APPROVER_TOKEN=your-infinity-prime-approver-token-here
 
 `;
 
@@ -242,6 +352,7 @@ function createSecretsManifestTemplate(repoPath: string): boolean {
       github: {
         GITHUB_TOKEN: "GitHub Personal Access Token",
         GITHUB_REPO: "GitHub repository (owner/repo)",
+        INFINITY_PRIME_APPROVER_TOKEN: "Infinity Prime Approver Token for automated approvals",
       },
       google: {
         GOOGLE_CLOUD_PROJECT_ID: "Google Cloud project ID",
@@ -318,30 +429,125 @@ function setupRepository(repoPath: string): SetupResult {
  * Main execution
  */
 async function main() {
-  console.log(`📁 Repository Root: ${REPOS_ROOT}\n`);
+  logHeader();
+  
+  const config = loadConfig();
 
-  const setupResults: SetupResult[] = [];
+  // Handle different modes
+  switch (mode) {
+    case "--discover":
+      await handleDiscoverMode(config);
+      break;
+    case "--status":
+      await handleStatusMode();
+      break;
+    case "--daemon":
+      await handleDaemonMode(config);
+      break;
+    case "--once":
+    default:
+      await handleOnceMode(config);
+      break;
+  }
+}
 
-  for (const repo of REPOS) {
-    const repoPath = path.join(REPOS_ROOT, repo);
-    console.log(`Processing: ${repo}...`);
-    
-    const result = setupRepository(repoPath);
-    setupResults.push(result);
-    
-    console.log(`  ${result.message}`);
-    if (result.status === "failed") {
-      console.log(`  ❌ Error: ${result.message}`);
-    }
+/**
+ * Handle discover mode - list all repositories
+ */
+async function handleDiscoverMode(config: SyncConfig) {
+  console.log("🔍 DISCOVERY MODE - Listing all repositories\n");
+  
+  const repos = await discoverRepositories(config, true);
+  
+  console.log(`\n📋 DISCOVERED REPOSITORIES (${repos.length} total):`);
+  console.log("================================================");
+  repos.forEach((repo, index) => {
+    console.log(`${(index + 1).toString().padStart(3)}. ${repo}`);
+  });
+  console.log();
+}
+
+/**
+ * Handle status mode - show sync status
+ */
+async function handleStatusMode() {
+  console.log("📊 SYNC STATUS REPORT\n");
+  
+  const status = SecretsSyncDaemon.getStatus();
+  const isRunning = SecretsSyncDaemon.isRunning();
+  
+  console.log(`Daemon Status: ${isRunning ? "🟢 RUNNING" : "🔴 STOPPED"}`);
+  
+  if (status) {
+    console.log(`Last Sync: ${status.lastSync || "Never"}`);
+    console.log(`Next Sync: ${status.nextSync || "N/A"}`);
+    console.log(`Success Count: ${status.successCount}`);
+    console.log(`Failure Count: ${status.failureCount}`);
     console.log();
+    
+    const repoCount = Object.keys(status.repositories).length;
+    if (repoCount > 0) {
+      console.log(`📁 Repository Status (${repoCount} repos):`);
+      console.log("================================================");
+      
+      for (const [repo, repoStatus] of Object.entries(status.repositories)) {
+        const icon = repoStatus.status === "success" ? "✅" : "❌";
+        console.log(`${icon} ${repo}: ${repoStatus.message}`);
+      }
+    }
+  } else {
+    console.log("No sync status available yet.");
+  }
+  console.log();
+}
+
+/**
+ * Handle daemon mode - continuous operation
+ */
+async function handleDaemonMode(config: SyncConfig) {
+  console.log("🔄 DAEMON MODE - Continuous 24/7 Operation\n");
+  
+  if (!config.sync.enabled) {
+    console.error("❌ Sync is disabled in configuration");
+    process.exit(1);
   }
 
+  const daemon = new SecretsSyncDaemon(
+    {
+      intervalHours: config.sync.interval_hours,
+      enabled: config.sync.enabled,
+      autoStart: config.sync.auto_start,
+    },
+    async () => {
+      // Sync function - run the setup for all repos
+      const result = await runSetupForAllRepos(config);
+      return {
+        success: result.successCount > 0,
+        message: `Synced ${result.successCount} repos (${result.failureCount} failed)`,
+      };
+    }
+  );
+
+  await daemon.start();
+  
+  // Keep process alive indefinitely - daemon will exit on SIGINT/SIGTERM
+  await new Promise<never>(() => {}); // Intentional: infinite wait for signal
+}
+
+/**
+ * Handle once mode - single execution (original behavior)
+ */
+async function handleOnceMode(config: SyncConfig) {
+  console.log("⚡ ONCE MODE - Single Execution\n");
+  
+  const result = await runSetupForAllRepos(config);
+  
   // Summary
   console.log("📊 SETUP SUMMARY");
   console.log("================================================");
-  console.log(`Total repositories: ${setupResults.length}`);
-  console.log(`Successful: ${setupResults.filter(r => r.status === "success").length}`);
-  console.log(`Failed: ${setupResults.filter(r => r.status === "failed").length}`);
+  console.log(`Total repositories: ${result.totalCount}`);
+  console.log(`Successful: ${result.successCount}`);
+  console.log(`Failed: ${result.failureCount}`);
   console.log();
 
   console.log("🚀 NEXT STEPS:");
@@ -367,6 +573,47 @@ async function main() {
   console.log();
 }
 
+/**
+ * Run setup for all repositories
+ */
+async function runSetupForAllRepos(config: SyncConfig): Promise<{
+  totalCount: number;
+  successCount: number;
+  failureCount: number;
+  results: SetupResult[];
+}> {
+  const repos = await discoverRepositories(config);
+  
+  console.log(`📁 Repository Root: ${REPOS_ROOT}`);
+  console.log(`📋 Processing ${repos.length} repositories...\n`);
+
+  const setupResults: SetupResult[] = [];
+
+  for (const repo of repos) {
+    const repoPath = path.join(REPOS_ROOT, repo);
+    console.log(`Processing: ${repo}...`);
+    
+    const result = setupRepository(repoPath);
+    setupResults.push(result);
+    
+    console.log(`  ${result.message}`);
+    if (result.status === "failed") {
+      console.log(`  ❌ Error: ${result.message}`);
+    }
+    console.log();
+  }
+
+  return {
+    totalCount: setupResults.length,
+    successCount: setupResults.filter((r) => r.status === "success").length,
+    failureCount: setupResults.filter((r) => r.status === "failed").length,
+    results: setupResults,
+  };
+}
+
+/**
+ * Main execution wrapper
+ */
 main().catch(err => {
   console.error("❌ Setup failed:", err);
   process.exit(1);
