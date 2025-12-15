@@ -311,6 +311,7 @@ GOOGLE_SERVICE_ACCOUNT_KEY_PATH=./config/google-service-account.json
 # ============================================================
 GITHUB_TOKEN=your-github-token-here
 GITHUB_REPO=InfinityXOneSystems/${config.repoName}
+INFINITY_PRIME_APPROVER_TOKEN=your-infinity-prime-approver-token-here
 
 `;
 
@@ -351,6 +352,7 @@ function createSecretsManifestTemplate(repoPath: string): boolean {
       github: {
         GITHUB_TOKEN: "GitHub Personal Access Token",
         GITHUB_REPO: "GitHub repository (owner/repo)",
+        INFINITY_PRIME_APPROVER_TOKEN: "Infinity Prime Approver Token for automated approvals",
       },
       google: {
         GOOGLE_CLOUD_PROJECT_ID: "Google Cloud project ID",
