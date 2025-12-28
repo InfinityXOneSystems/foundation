@@ -1,0 +1,565 @@
+# .gitignore - Comprehensive Secret & Dependency Protection
+# ============================================================
+
+# ============================================================
+# CRITICAL: ENVIRONMENT & SECRETS (NEVER COMMIT)
+# ============================================================
+.env
+.env.local
+.env.*.local
+.env.production.local
+.env.development.local
+.env.test.local
+.env.staging.local
+
+# Secret Files
+*.env
+*.env.bak
+*.env.backup
+*.env.old
+.envrc
+.env.user
+
+# ============================================================
+# API KEYS & CREDENTIALS (NEVER COMMIT)
+# ============================================================
+# Encryption keys
+ENCRYPTION_KEY*
+ADMIN_KEY*
+*.key
+*.pem
+*.p12
+*.p8
+*.pkcs8
+*.crt
+*.cer
+*.cert
+*.der
+*.jks
+*.pfx
+
+# GitHub & OAuth tokens
+github_token
+github_secret
+oauth_*
+*.token
+*.tokens
+token.json
+tokens.json
+service-account-key.json
+firebase-adminsdk-*.json
+
+# Cloud provider credentials
+google-service-account.json
+google-credentials.json
+gcloud-*.json
+aws-credentials
+aws-secret-*
+azure-*.json
+
+# API Keys
+*.apikey
+*_secret
+*_key.json
+credentials.json
+secrets.json
+config/secrets.json
+
+# ============================================================
+# NODE.JS & DEPENDENCY MANAGEMENT
+# ============================================================
+node_modules/
+npm-debug.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+*.npm
+.npm
+.eslintcache
+.stylelintcache
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
+# ============================================================
+# PYTHON & VIRTUAL ENVIRONMENTS
+# ============================================================
+# Virtual environments
+venv/
+env/
+ENV/
+.venv
+.env/
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+dist/
+build/
+
+# Jupyter
+.ipynb_checkpoints
+*.ipynb
+
+# ============================================================
+# GOOGLE CLOUD & FIREBASE
+# ============================================================
+google-service-account.json
+google-credentials.json
+firebaseConfig.js
+firebase.json
+.firebase/
+firebase-debug.log
+/.firebaserc
+
+# ============================================================
+# BUILD & COMPILATION OUTPUT
+# ============================================================
+/dist/
+/build/
+/out/
+/.next/
+/.vercel/
+/.output/
+coverage/
+.tsc/
+*.tsbuildinfo
+.swc/
+
+# ============================================================
+# IDE & EDITOR CONFIGURATION
+# ============================================================
+.vscode/
+.idea/
+*.code-workspace
+.sublime-project
+.sublime-workspace
+.netbeans/
+.eclipse/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# ============================================================
+# OS & TEMPORARY FILES
+# ============================================================
+.DS_Store
+.DS_Store?
+._*
+.AppleDouble
+.LSOverride
+Thumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+ehthumbs.db
+*.tmp
+*.bak
+*.backup
+*.cache
+*.log*
+*.lnk
+
+# ============================================================
+# PROJECT-SPECIFIC ARTIFACTS
+# ============================================================
+artifacts/
+/artifacts/
+*.tgz
+*.zip
+*.tar
+*.tar.gz
+*.rar
+
+# Temporary directories
+/tmp/
+/temp/
+/.tmp/
+
+# ============================================================
+# DOCKER & CONTAINER
+# ============================================================
+docker-compose.override.yml
+.docker/
+.dockerignore
+
+# ============================================================
+# DATABASE & LOCAL STORAGE
+# ============================================================
+*.db
+*.sqlite
+*.sqlite3
+*.postgres
+/data/
+/db/
+
+# ============================================================
+# MOBILE & SECRETS SYNC SYSTEM (Foundation)
+# ============================================================
+mobile-access-tokens.json
+secrets-manifest.json
+.env.local.bak
+.env.backup
+mobile-*.json
+tokens-*.json
+secrets-*.json
+
+# ============================================================
+# NEVER COMMIT (EXPLICIT ENFORCEMENT)
+# ============================================================
+!.gitignore
+!.gitkeep
+
+*.7z
+
+# Memory and rehydrate
+src/memory/rehydrate/memory.json
+src/memory/rehydrate/vectors.json
+src/memory/rehydrate/semantic.json
+src/memory/rehydrate/archive/
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Test output
+junit.xml
+
+# Misc
+*.pid
+*.seed
+*.pid.lock
+
+# Ignore local scripts/configs
+scripts/sync-github-secrets.js
+sync-secrets.config.json
+
+# ============================================================
+# TERRAFORM & INFRASTRUCTURE
+# ============================================================
+# Terraform state files
+*.tfstate
+*.tfstate.*
+*.tfstate.backup
+.terraform/
+.terraform.lock.hcl
+terraform.tfvars
+terraform.tfvars.json
+*.auto.tfvars
+*.auto.tfvars.json
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+.terraformrc
+terraform.rc
+
+# Crash log files
+crash.log
+crash.*.log
+
+# Terraform plan output
+*.tfplan
+plan.out
+
+# ============================================================
+# KUBERNETES & HELM
+# ============================================================
+# Helm
+.helm/
+*.tgz
+charts/*.tgz
+requirements.lock
+
+# Kubernetes secrets
+*-secret.yaml
+*-secrets.yaml
+secret-*.yaml
+secrets-*.yaml
+
+# Kustomize
+kustomization.yaml.bak
+
+# ============================================================
+# CI/CD & GITHUB ACTIONS
+# ============================================================
+.github/workflows/*.local.yml
+.github/secrets/
+runner-registration-token
+
+# ============================================================
+# MOBILE DEVELOPMENT
+# ============================================================
+# iOS
+*.ipa
+*.dSYM.zip
+*.dSYM
+xcuserdata/
+DerivedData/
+*.xcworkspace/xcuserdata/
+.build/
+Pods/
+Podfile.lock
+*.moved-aside
+*.xccheckout
+*.xcscmblueprint
+ios/.xcode.env.local
+
+# Android
+*.apk
+*.aab
+*.ap_
+*.dex
+local.properties
+.gradle/
+build/
+captures/
+.externalNativeBuild
+.cxx/
+google-services.json
+gradle.properties
+
+# React Native
+.expo/
+.expo-shared/
+npm-debug.*
+metro-cache/
+
+# ============================================================
+# FASTAPI & PYTHON WEB
+# ============================================================
+# FastAPI/Uvicorn
+.pytest_cache/
+.mypy_cache/
+.dmypy.json
+dmypy.json
+.pyre/
+.pytype/
+celerybeat-schedule
+celerybeat.pid
+
+# SQLAlchemy/Alembic
+alembic.ini.local
+migrations/versions/*.pyc
+
+# ============================================================
+# RUST & GO
+# ============================================================
+# Rust
+/target/
+Cargo.lock
+**/*.rs.bk
+
+# Go
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+go.work
+go.work.sum
+
+# ============================================================
+# SECURITY SCANNING & AUDIT
+# ============================================================
+# CodeQL
+.codeql/
+codeql-database/
+
+# Trivy
+trivy-results.json
+trivy-*.json
+
+# SAST/DAST results
+security-scan-results/
+vulnerability-report.json
+snyk-report.json
+
+# ============================================================
+# OBSERVABILITY & MONITORING
+# ============================================================
+# Prometheus
+prometheus-data/
+alertmanager-data/
+
+# Grafana
+grafana-data/
+grafana.db
+
+# Logs
+logs/
+*.log
+*.log.*
+audit-logs/
+
+# ============================================================
+# BACKUP & ARCHIVE
+# ============================================================
+*.backup
+*.bak
+*.old
+*.orig
+*_backup
+*_old
+backup/
+backups/
+archive/
+archives/
+
+# ============================================================
+# LLM & AI ARTIFACTS
+# ============================================================
+# Model files
+*.model
+*.ckpt
+*.pt
+*.pth
+*.h5
+*.pkl
+*.pickle
+models/
+checkpoints/
+
+# Prompt cache
+.prompt-cache/
+prompt-cache.json
+
+# LLM responses
+llm-responses/
+*.llm-response
+
+# ============================================================
+# TESTING & COVERAGE
+# ============================================================
+coverage/
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+.nox/
+.hypothesis/
+.pytest_cache/
+nosetests.xml
+coverage.xml
+*.cover
+.cache
+
+# ============================================================
+# ADDITIONAL SECRETS PATTERNS
+# ============================================================
+# Private keys
+*_rsa
+*_dsa
+*_ecdsa
+*_ed25519
+id_rsa*
+id_dsa*
+id_ecdsa*
+id_ed25519*
+*.private
+*.secret
+
+# OAuth & JWT
+*.jwt
+jwt-secret
+oauth2-*
+refresh_token*
+
+# Database URLs
+database_url
+db_url
+postgres_url
+mongodb_url
+redis_url
+
+# Webhook secrets
+webhook_secret
+signing_secret
+
+# Encryption
+encryption_*
+decrypt_*
+cipher_*
+
+# ============================================================
+# VAULT & SECRETS MANAGEMENT
+# ============================================================
+.vault-token
+vault-token
+vault-*.json
+vault-config.hcl
+
+# ============================================================
+# WORKSPACE & PROJECT SPECIFIC
+# ============================================================
+# Quantum Mind System artifacts
+quantum-mind-state.json
+unified-brain-memory.json
+agent-conversations/
+
+# Autonomous GitHub System
+control-plane-state.db
+worker-jobs.db
+audit-trail.encrypted
+
+# Repository sync
+.sync-state/
+sync-conflicts/
+
+# ============================================================
+# END OF .GITIGNORE
+# ============================================================
+
+# JARVIS Workspace - Never commit secrets or logs
+secrets/
+*.key
+*.pem
+credentials.json
+. env. local
+.env.production
+*. pfx
+*.p12
+vault/
+logs/
+*. log
+
+# Windows
+Thumbs.db
+desktop.ini
+$RECYCLE.BIN/
+
+# VS Code
+.vscode/
+*. code-workspace
+
+desktop.ini
+
+# --- INFINITY XOS SECRET LOCK ---
+*.json
+.env
+.env.*
+credentials.json
+workspace-sa.json
+CredentialManager/
+
+# --- INFINITY-XOS SECRET LOCK ---
+*.json
+.env
+.env.*
+credentials.json
+workspace-sa.json
+CredentialManager/
+.secrets/
+
+# ignore local credentials
+.credentials/
